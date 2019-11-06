@@ -1,0 +1,203 @@
+---
+title: "Group_project"
+author: "Jo"
+date: "October 28, 2019"
+output: html_document
+---
+
+read in data add in treatment numbers
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source("fix_chl.R")
+source("Graphing_Set_Up.R")
+library(lme4)
+library(coefplot)
+library(nlme)
+```
+
+
+Remove treatments with ceriodaphnia since they didn't survive
+```{r}
+dat <- newdat %>% filter(treatment != 5 & treatment != 6 & treatment != 9 & treatment != 10 & treatment != 13 & treatment != 14 )
+
+
+```
+
+make a columns for disturbed/undistrubed and both/none/cladoceran/snail
+
+```{r}
+
+dat$disturb <- "X"
+  
+for (i in 1:nrow(dat)){
+  if (dat$treatment[i] ==2| dat$treatment[i] ==4| dat$treatment[i] ==8|
+      dat$treatment[i] ==12){
+    dat$disturb[i] <- "y"
+  } else if (dat$treatment[i] ==1|dat$treatment[i] ==3|dat$treatment[i] ==7|dat$treatment[i] ==11){
+    dat$disturb[i] <- "n"
+  }}
+
+dat$animal <- "X"
+
+for (i in 1:nrow(dat)){
+  if (dat$treatment[i] ==3| dat$treatment[i] ==4){
+    dat$animal[i] <- "daphnia"
+  } else if (dat$treatment[i] ==7|dat$treatment[i] ==8){
+    dat$animal[i] <- "snail"
+  } else if (dat$treatment[i] ==11|dat$treatment[i] ==12){
+    dat$animal[i] <- "both"}
+  else if (dat$treatment[i] ==1|dat$treatment[i] ==2){
+    dat$animal[i] <- "none"}
+}
+
+
+
+
+
+```
+
+
+
+
+Subset final time point for Nh4 and final 4 days for Chl
+```{r final time point}
+fday <- dat %>% filter(ExptDay == 40)
+l <- as.numeric(unique(fday$TankNum))
+fday1 <- dat %>% filter(ExptDay == 39) %>% filter(TankNum !=20 & TankNum !=21 & TankNum !=22 & TankNum != 23 &
+                                                  TankNum !=24 & TankNum !=25 & TankNum !=26 & TankNum != 27 & 
+                                                  TankNum !=28 & TankNum !=29 & TankNum !=30 & TankNum != 31 & 
+                                                  TankNum !=32 & TankNum !=33 & TankNum !=34 & TankNum != 35 & 
+                                                  TankNum !=36 & TankNum !=37 & TankNum !=38 & TankNum != 39 & 
+                                                  TankNum !=40 & TankNum !=83 & TankNum !=84 & TankNum != 85 & 
+                                                  TankNum !=86 & TankNum !=87 & TankNum !=88 & TankNum != 89 & 
+                                                  TankNum !=90 & TankNum !=91 & TankNum !=92 & TankNum != 93 &
+                                                  TankNum !=94 & TankNum !=95 & TankNum !=96 & TankNum != 97 & 
+                                                  TankNum !=98 & TankNum !=99 & TankNum !=100& TankNum != 101 & 
+                                                  TankNum != 102 & TankNum != 103 & TankNum != 104 & TankNum != 105 & 
+                                                  TankNum != 106 & TankNum != 107) 
+finday <- rbind(fday, fday1)
+
+
+
+endday <- dat %>% filter(ExptDay == 40 | ExptDay == 39 | ExptDay == 38 | ExptDay == 37)
+endday1 <- dat %>% filter(ExptDay == 36) %>% filter(TankNum !=20 & TankNum !=21 & TankNum !=22 & TankNum != 23 &
+                                                  TankNum !=24 & TankNum !=25 & TankNum !=26 & TankNum != 27 & 
+                                                  TankNum !=28 & TankNum !=29 & TankNum !=30 & TankNum != 31 & 
+                                                  TankNum !=32 & TankNum !=33 & TankNum !=34 & TankNum != 35 & 
+                                                  TankNum !=36 & TankNum !=37 & TankNum !=38 & TankNum != 39 & 
+                                                  TankNum !=40 & TankNum !=83 & TankNum !=84 & TankNum != 85 & 
+                                                  TankNum !=86 & TankNum !=87 & TankNum !=88 & TankNum != 89 & 
+                                                  TankNum !=90 & TankNum !=91 & TankNum !=92 & TankNum != 93 &
+                                                  TankNum !=94 & TankNum !=95 & TankNum !=96 & TankNum != 97 & 
+                                                  TankNum !=98 & TankNum !=99 & TankNum !=100& TankNum != 101 & 
+                                                  TankNum != 102 & TankNum != 103 & TankNum != 104 & TankNum != 105 & 
+                                                  TankNum != 106 & TankNum != 107)
+
+end <- rbind(endday, endday1)
+
+
+ggplot(data = end, aes(as.factor(treatment), Chl)) + geom_boxplot()
+
+ggplot(data=finday, aes(as.factor(treatment), NH4)) + geom_boxplot()
+```
+
+
+ 
+```{r algal resilience}
+
+dat1 <- end %>% filter(disturb == "y")
+
+#######
+## MPK Contrast stuff
+#######
+
+## Put the order of the factors in a more reasonable order
+dat1$animal <- factor(dat1$animal, levels = c("none", "snail", "daphnia", "both"))
+
+## Ben's stuff that I had a little bit of a hard time following because I am a bit unclear about which matrix he made and his
+ ## comment about transpose confused me a bit
+
+cont <- matrix(nrow = 4, ncol = 4
+  , data = c(
+    1/4,  1/4,  1/4,  1/4   ## Avg chl
+  , 1  , -1/3, -1/3, -1/3   ## no animal vs avg of the rest of the animals
+  , 0  ,    1,    -1,   0   ## difference between snails and daphnia
+  , 0  ,  1/2,   1/2,  -1   ## synergistic effect of both animals vs avg of daph and snails.  Unsure about this one because you just have both? so maybe want 0, 1, 1, -1?
+  )
+  , byrow = TRUE)
+
+cinv <- t(solve(cont))
+
+dimnames(cinv) <- list(
+  levels(dat1$animal)
+, c(": intercept", ": avg", ": s vs d", ": both")
+)
+
+### Fit the model with contrasts
+finmod <- lm(log(Chl) ~ animal, data = dat1, contrasts = list(animal = cinv))
+
+
+### Clearly did something...
+coefplot(finmod)
+
+### But I am a bit confused a bit how snails vs dapnia could give these CI, when the CI with contrasts off look like this:
+#coefplot(lm(log(Chl) ~ animal, data = dat1))
+
+
+#finmod <- lm(log(Chl) ~ animal, data = dat1)
+
+coefplot(finmod)
+
+plot(resid(finmod))
+qqnorm(resid(finmod))
+
+  ```
+
+Max Chl - resistance
+
+```{r}
+max_chl <- dat %>% group_by(TankNum) %>% slice(which.max(Chl))
+
+max_chl$up <- max_chl$ExptDay + 1
+max_chl$down <- max_chl$ExptDay - 1
+
+
+
+```
+
+
+
+
+Algal resistance, compare slope over time after disturbance
+```{r algal resistance}
+mod_res <- lme(Chl ~ as.factor(treatment), correlation = corAR1(form = ~ExptDay), data = dat)
+
+```
+
+Graph algae
+```{r graph algae, echo=FALSE}
+s <- summary(mod2)
+coef_dat <- s$coefficients
+coef_dat2 <- data.frame(
+  coefficients = row.names(coef_dat),
+  estimate = coef_dat[,1],
+  std_error = coef_dat[,2]
+)
+```
+
+NH4 resilience, final time point
+```{r algal resilience}
+
+```
+
+
+NH4 resistance, compare slope over time after disturbance
+```{r algal resistance}
+
+```
+
+Graph NH4
+```{r graph algae, echo=FALSE}
+
+```
+
