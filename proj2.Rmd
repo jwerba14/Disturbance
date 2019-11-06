@@ -119,39 +119,32 @@ dat1$animal <- factor(dat1$animal, levels = c("none", "snail", "daphnia", "both"
 
 cont <- matrix(nrow = 4, ncol = 4
   , data = c(
-    1/4,  1/4,  1/4,  1/4   ## Avg chl
+    1/4,  1/4,  1/4,  1/4   ## Avg over all treatments
   , 1  , -1/3, -1/3, -1/3   ## no animal vs avg of the rest of the animals
   , 0  ,    1,    -1,   0   ## difference between snails and daphnia
-  , 0  ,  1/2,   1/2,  -1   ## synergistic effect of both animals vs avg of daph and snails.  Unsure about this one because you just have both? so maybe want 0, 1, 1, -1?
+  , 0  ,  1/2,   1/2,  -1   ## synergistic effect of both animals vs avg of daph and snails.  
   )
   , byrow = TRUE)
 
-cinv <- t(solve(cont))
 
-dimnames(cinv) <- list(
+
+dimnames(cont) <- list(
   levels(dat1$animal)
 , c(": intercept", ": avg", ": s vs d", ": both")
 )
 
 ### Fit the model with contrasts
-finmod <- lm(log(Chl) ~ animal, data = dat1, contrasts = list(animal = cinv))
+finmod <- lm(log(Chl) ~ animal, data = dat1, contrasts = list(animal = cont[,-1]))
 
 
 ### Clearly did something...
 coefplot(finmod)
 
-### But I am a bit confused a bit how snails vs dapnia could give these CI, when the CI with contrasts off look like this:
-#coefplot(lm(log(Chl) ~ animal, data = dat1))
-
-
-#finmod <- lm(log(Chl) ~ animal, data = dat1)
-
-coefplot(finmod)
 
 plot(resid(finmod))
 qqnorm(resid(finmod))
+```
 
-  ```
 
 Max Chl - resistance
 
