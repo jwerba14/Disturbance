@@ -13,6 +13,8 @@ source("Graphing_Set_Up.R")
 library(lme4)
 library(coefplot)
 library(nlme)
+library(tidyquant)
+
 ```
 
 
@@ -95,10 +97,12 @@ endday1 <- dat %>% filter(ExptDay == 36) %>% filter(TankNum !=20 & TankNum !=21 
 
 end <- rbind(endday, endday1)
 
-
+mean_nh4 <- finday %>% filter(treatment == 1) %>% summarize(avg = mean(NH4))
+mean_chl <- finday %>% filter(treatment == 1) %>% summarize(avg = mean(Chl))
 ggplot(data = end, aes(as.factor(treatment), Chl)) + geom_boxplot()
+ggplot(data = end, aes(as.factor(treatment), Chl/mean_chl$avg)) + geom_boxplot()
 
-ggplot(data=finday, aes(as.factor(treatment), NH4)) + geom_boxplot()
+ggplot(data=finday, aes(as.factor(treatment), NH4/mean_nh4$avg)) + geom_boxplot()
 ```
 
 
@@ -107,22 +111,18 @@ ggplot(data=finday, aes(as.factor(treatment), NH4)) + geom_boxplot()
 
 dat1 <- end %>% filter(disturb == "y")
 
-#######
-## MPK Contrast stuff
-#######
 
 ## Put the order of the factors in a more reasonable order
 dat1$animal <- factor(dat1$animal, levels = c("none", "snail", "daphnia", "both"))
 
-## Ben's stuff that I had a little bit of a hard time following because I am a bit unclear about which matrix he made and his
- ## comment about transpose confused me a bit
+
 
 cont <- matrix(nrow = 4, ncol = 4
   , data = c(
-    1/4,  1/4,  1/4,  1/4   ## Avg over all treatments
-  , 1  , -1/3, -1/3, -1/3   ## no animal vs avg of the rest of the animals
-  , 0  ,    1,    -1,   0   ## difference between snails and daphnia
-  , 0  ,  1/2,   1/2,  -1   ## synergistic effect of both animals vs avg of daph and snails.  
+    1  ,  -1,      0,    0   ## snail vs none
+  , 1  ,   0,     -1,    0   ## daphnia vs none
+  , 0  ,    1,    -1,    0   ## difference between snails and daphnia
+  , 0  ,  1/2,   1/2,   -1   ## synergistic effect of both animals vs avg of daph and snails.  
   )
   , byrow = TRUE)
 
@@ -130,7 +130,7 @@ cont <- matrix(nrow = 4, ncol = 4
 
 dimnames(cont) <- list(
   levels(dat1$animal)
-, c(": intercept", ": avg", ": s vs d", ": both")
+, c( ": snail",": daphnia", ": s vs d", ": both")
 )
 
 ### Fit the model with contrasts
@@ -149,11 +149,54 @@ qqnorm(resid(finmod))
 Max Chl - resistance
 
 ```{r}
-max_chl <- dat %>% group_by(TankNum) %>% slice(which.max(Chl))
 
-max_chl$up <- max_chl$ExptDay + 1
-max_chl$down <- max_chl$ExptDay - 1
+## need dummy date variable for tq_mutate to work....
 
+
+
+Date <- paste(dat$Month, dat$Day,dat$Year, sep = "-")
+
+
+betterDates <- as.Date(Date,
+  format = "%B-%d-%Y")
+
+dates <- data.frame(Dates1 = Date,
+                    Dates2 = betterDates)
+
+p <- dates %>% filter(is.na(Dates2))
+which(is.na(dates$Dates2))
+dates[c(390,400,409,418,421,440),2] <- "2019-03-02"
+dates[419,2] <- "2019-01-31"
+dates[498,2] <- "2019-02-03"
+dates[(which(is.na(dates$Dates2))), 2] <- "2019-03-01"
+
+dat$Date <- dates$Dates2
+
+dat <- dat %>% filter(!is.na(adj_chl))
+dat_dist <- dat %>% filter(ExptDay >= ExptDay[which(dat$Disturbed=="y")]) ## only days after disturbance
+
+chl_rollmean <- dat_dist %>% group_by(treatment) %>%
+    tq_mutate(
+        # tq_mutate args
+        select     = adj_chl,
+        mutate_fun = rollapply, 
+        
+        # rollapply args
+        width      = 3,
+        FUN        = mean,
+        # mean args
+        na.rm  = TRUE,
+        # tq_mutate args
+        col_rename = "mean_3"
+    ) 
+
+
+max_chl <- chl_rollmean %>% group_by(TankNum) %>% 
+  select(TankNum,treatment,animal, disturb,mean_3) %>%
+  filter(mean_3 == max(mean_3, na.rm = T)) %>% filter(disturb == "y")
+
+
+maxmod <- lm(log(mean_3) ~ animal, data = max_chl, contrasts = list(animal = cont[,-1]))
 
 
 ```
@@ -163,7 +206,10 @@ max_chl$down <- max_chl$ExptDay - 1
 
 Algal resistance, compare slope over time after disturbance
 ```{r algal resistance}
-mod_res <- lme(Chl ~ as.factor(treatment), correlation = corAR1(form = ~ExptDay), data = dat)
+mod_res <- lmer(adj_chl ~ as.factor(treatment)*ExptDay + (1|TankNum), data = dat_dist)
+
+plot(resid(mod_res))
+qqnorm(resid(mod_res))
 
 ```
 

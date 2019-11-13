@@ -29,8 +29,12 @@ newdat$adj_chl <- newdat$Chl - newdat$Blank.Chl
 
 ## remove bad days
 
-newdat <- newdat %>% filter(Month != "February"& Day != 9) %>% filter(Month != "February"& Day != 10) %>%
-  filter(Month != "February"& Day != 11) %>% filter(Month != "February"& Day != 12)
+newdat <- newdat %>% filter(!(Month == "February"& Day == 9)) %>% 
+  filter(!(Month == "February"& Day == 10)) %>%
+  filter(!(Month == "February"& Day == 11)) %>% 
+  filter(!(Month == "February"& Day == 12))
 
+
+newdat <- newdat %>% select(-c(X,X.1,X.2))
 
 
