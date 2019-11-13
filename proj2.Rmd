@@ -21,7 +21,7 @@ library(tidyquant)
 Remove treatments with ceriodaphnia since they didn't survive
 ```{r}
 dat <- newdat %>% filter(treatment != 5 & treatment != 6 & treatment != 9 & treatment != 10 & treatment != 13 & treatment != 14 )
-
+## consider (! treatment %in% c(5,6,9,10,13,14))
 
 ```
 
@@ -117,7 +117,7 @@ dat1$animal <- factor(dat1$animal, levels = c("none", "snail", "daphnia", "both"
 
 
 
-cont <- matrix(nrow = 4, ncol = 4
+inverse_cont <- matrix(nrow = 4, ncol = 4
   , data = c(
     1  ,  -1,      0,    0   ## snail vs none
   , 1  ,   0,     -1,    0   ## daphnia vs none
@@ -128,13 +128,35 @@ cont <- matrix(nrow = 4, ncol = 4
 
 
 
-dimnames(cont) <- list(
-  levels(dat1$animal)
-, c( ": snail",": daphnia", ": s vs d", ": both")
+dimnames(inverse_cont) <- list(
+
+  c( ": snail",": daphnia", ": s vs d", ": both")
+  ,   levels(dat1$animal)
 )
 
+## attempt to invert contrast matrix: doesn't work because we have
+##  linearly dependent contrasts (sums of columns 1-3 == column 4)
+try(cont <- solve(inverse_cont))
+
+## fit model with one parameter per treatment
+##   1. throw away non-positive values
+##   2. set to some small value e.g. thresh <- 0.002
+##      Chl[Chl<thresh] <- 0.001
+##   3. censoring? (AER::tobit())
+finmod0 <- lm(log10(Chl) ~ -1 + animal, data = dat1)
+m1 <- multcomp::glht(finmod0,inverse_cont)
+(s <- summary(m1))
+plot(m1)
+## broom::tidy(m1) ##  sucks, unfortunately
+coef(finmod0)  ## compare to coefficients
+e1 <-  emmeans(finmod0, ~animal)
+
+plot(e1)
+## vignette("multcomp-examples",package="multcomp") ## p. 11
+
 ### Fit the model with contrasts
-finmod <- lm(log(Chl) ~ animal, data = dat1, contrasts = list(animal = cont[,-1]))
+## (don't do this, we hadn't inverted the contrast matrix yet)
+## finmod <- lm(log(Chl) ~ animal, data = dat1, contrasts = list(animal = cont[,-1]))
 
 
 ### Clearly did something...
@@ -201,16 +223,35 @@ maxmod <- lm(log(mean_3) ~ animal, data = max_chl, contrasts = list(animal = con
 
 ```
 
+```{r}
+library(ggplot2)
+ggplot(dat_dist,
+       aes(x=ExptDay,adj_chl,
+           colour=animal,
+           shape=disturb))+geom_point()+
+  scale_y_log10() +
+  facet_wrap(~disturb)+
+  geom_smooth(method="gam",formula=y~s(x,k=10,bs="cs"),
+              method.args=list(method="REML"))+
+  geom_line(aes(group=TankNum),alpha=0.1)
+```
 
-
+Could do this with GAMs: https://rpubs.com/bbolker/ratgrowthcurves
 
 Algal resistance, compare slope over time after disturbance
 ```{r algal resistance}
-mod_res <- lmer(adj_chl ~ as.factor(treatment)*ExptDay + (1|TankNum), data = dat_dist)
-
+dat_dist <- transform(dat_dist,ExptDay0 = ExptDay-min(ExptDay,na.rm=TRUE))
+library(lmerTest)
+mod_res <- lmer(log10(adj_chl) ~ animal*ExptDay0 + (1|TankNum),
+                data = dat_dist,
+                subset=(disturb=="y" & ExptDay0<=5))
+summary(mod_res)
 plot(resid(mod_res))
 qqnorm(resid(mod_res))
-
+## rbind(
+##  cbind(inverse_cont,matrix(0,4,4)),
+##  cbind(matrix(0,4,4),inverse_cont)
+## )
 ```
 
 Graph algae
