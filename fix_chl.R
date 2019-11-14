@@ -22,7 +22,7 @@ str(blank)
 blank <- separate(blank, Date, c("Month", "Day"), sep = " ")
 blank$Day <- as.numeric(as.character(blank$Day))
 
-newdat <- left_join(dat, blank)
+newdat <- left_join(dat, blank) 
 newdat$Blank.Chl[is.na(newdat$Blank.Chl)] <- 0
 
 newdat$adj_chl <- newdat$Chl - newdat$Blank.Chl
@@ -35,6 +35,6 @@ newdat <- newdat %>% filter(!(Month == "February"& Day == 9)) %>%
   filter(!(Month == "February"& Day == 12))
 
 
-newdat <- newdat %>% select(-c(X,X.1,X.2))
+newdat <- newdat %>% dplyr::select(-c(X,X.1,X.2))
 
 
