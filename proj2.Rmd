@@ -14,21 +14,18 @@ library(lme4)
 library(coefplot)
 library(nlme)
 library(tidyquant)
-
+library(emmeans)
 ```
 
 
 Remove treatments with ceriodaphnia since they didn't survive
 ```{r}
-dat <- newdat %>% filter(treatment != 5 & treatment != 6 & treatment != 9 & treatment != 10 & treatment != 13 & treatment != 14 )
-## consider (! treatment %in% c(5,6,9,10,13,14))
-
+dat <- newdat %>% filter(! treatment %in% c(5,6,9,10,13,14))
 ```
 
-make a columns for disturbed/undistrubed and both/none/cladoceran/snail
+make a columns for disturbed/undisturbed and both/none/cladoceran/snail
 
 ```{r}
-
 dat$disturb <- "X"
   
 for (i in 1:nrow(dat)){
@@ -159,12 +156,11 @@ plot(e1)
 ## finmod <- lm(log(Chl) ~ animal, data = dat1, contrasts = list(animal = cont[,-1]))
 
 
-### Clearly did something...
-coefplot(finmod)
-
-
-plot(resid(finmod))
-qqnorm(resid(finmod))
+plot(resid(finmod0))
+qqnorm(resid(finmod0))
+qqline(resid(finmod0),col=2) ## left-skewed
+hist(resid(finmod0),col="gray")
+## ?? consider sqrt() rather than log-transform?
 ```
 
 
@@ -218,7 +214,7 @@ max_chl <- chl_rollmean %>% group_by(TankNum) %>%
   filter(mean_3 == max(mean_3, na.rm = T)) %>% filter(disturb == "y")
 
 
-maxmod <- lm(log(mean_3) ~ animal, data = max_chl, contrasts = list(animal = cont[,-1]))
+## maxmod <- lm(log(mean_3) ~ animal, data = max_chl, contrasts = list(animal = cont[,-1]))
 
 
 ```
@@ -248,10 +244,22 @@ mod_res <- lmer(log10(adj_chl) ~ animal*ExptDay0 + (1|TankNum),
 summary(mod_res)
 plot(resid(mod_res))
 qqnorm(resid(mod_res))
-## rbind(
-##  cbind(inverse_cont,matrix(0,4,4)),
-##  cbind(matrix(0,4,4),inverse_cont)
-## )
+mod_res2 <- lmer(log10(adj_chl) ~ -1 + animal + animal:ExptDay0 +
+                   (1|TankNum),  ## ExpDay0|TankNum ?
+                data = dat_dist,
+                subset=(disturb=="y" & ExptDay0<=5))
+
+inv_cont2 <- rbind(
+  cbind(inverse_cont,matrix(0,4,4)),
+  cbind(matrix(0,4,4),inverse_cont)
+)
+dimnames(inv_cont2) <- list(paste(rep(c("int","slope"),each=4),
+                                  rownames(inv_cont2)),
+                            names(fixef(mod_res2)))
+
+m2 <- multcomp::glht(mod_res2,inv_cont2)
+summary(m2)
+## need to double-check this
 ```
 
 Graph algae
