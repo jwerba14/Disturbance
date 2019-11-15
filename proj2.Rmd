@@ -16,6 +16,7 @@ library(nlme)
 library(tidyquant)
 library(emmeans)
 library(multcomp)
+library(lmerTest)
 ```
 
 
@@ -105,7 +106,7 @@ ggplot(data=finday, aes(as.factor(treatment), NH4/mean_nh4$avg)) + geom_boxplot(
 
 
  
-```{r algal resilience}
+```{r chl final}
 
 dat1 <- end %>% filter(disturb == "y")
 
@@ -168,7 +169,7 @@ m1 <- multcomp::glht(finmod00,inverse_cont)
 plot(m1)
 ## broom::tidy(m1) ##  sucks, unfortunately
 coef(finmod00)  ## compare to coefficients
-e1 <-  emmeans(finmod00, ~animal)
+e1 <-  emmeans(finmod00, ~animal, type = "response")
 
 plot(e1)
 ## vignette("multcomp-examples",package="multcomp") ## p. 11
@@ -186,15 +187,15 @@ hist(resid(finmod00),col="gray")
 
 plot(resid(finmod00sq))
 qqnorm(resid(finmod00sq))
-qqline(resid(finmod00sq),col=2) ## left-skewed
+qqline(resid(finmod00sq),col=2) ## still left skewed but  a little more even?? 
 hist(resid(finmod00sq),col="gray")
 
 ```
 
 
-Max Chl - resistance
+Max Chl - 
 
-```{r}
+```{r max chl}
 
 ## need dummy date variable for tq_mutate to work....
 
@@ -246,6 +247,12 @@ max_chl$animal <- as.factor(max_chl$animal)
 max_chl$animal <- factor(max_chl$animal, levels = c("none", "snail", "daphnia", "both"))
 
 maxmod <- lm(log(mean_3) ~ animal, data = max_chl)
+
+plot(resid(maxmod)) ##hmm definitely seems like a pattern but there aren't that many points
+plot.new()
+qqnorm(resid(maxmod))
+qqline(resid(maxmod),col=2) ## also left skewed but not terrible?
+hist(resid(maxmod),col="gray")
 mm <- multcomp::glht(maxmod,inverse_cont)
 (ss <- summary(mm))
 plot(mm)
@@ -257,8 +264,7 @@ plot(e2)
 
 ```
 
-```{r}
-library(ggplot2)
+```{r plot chl slope}
 ggplot(dat_dist,
        aes(x=ExptDay,adj_chl,
            colour=animal,
@@ -273,9 +279,9 @@ ggplot(dat_dist,
 Could do this with GAMs: https://rpubs.com/bbolker/ratgrowthcurves
 
 Algal resistance, compare slope over time after disturbance
-```{r algal resistance}
+```{r algal slope}
 dat_dist <- transform(dat_dist,ExptDay0 = ExptDay-min(ExptDay,na.rm=TRUE))
-library(lmerTest)
+
 mod_res <- lmer(log10(adj_chl) ~ animal*ExptDay0 + (1|TankNum),
                 data = dat_dist,
                 subset=(disturb=="y" & ExptDay0<=5))
@@ -312,7 +318,7 @@ coef_dat2 <- data.frame(
 ```
 
 NH4 resilience, final time point
-```{r algal resilience}
+```{r ammonium final}
 finday1 <- finday %>% filter(disturb == "y")
 finday1$animal <- factor(finday1$animal,levels = c("none", "snail", "daphnia", "both")) 
 amm_end <- lm(data = finday1, NH4 ~ animal)
@@ -329,7 +335,7 @@ plot(e1_amm)
 
 
 max Nh4 post disturbance
-```{r algal resistance}
+```{r ammonium max}
 nh_max <- dat %>% filter(disturb == "y") %>% filter(ExptDay >= ExptDay[which(dat$Disturbed=="y")])
 nh_max1 <- nh_max %>% group_by(TankNum) %>% mutate(max_nh4= max(NH4,na.rm = T))
 nh_max1$animal <- factor(nh_max1$animal, levels = c("none", "snail", "daphnia", "both"))
@@ -346,4 +352,53 @@ plot(e1_max)
 ```
 
 
+```{r sediment data}
+sed <- read.csv("sediment.csv")
+newdat1 <- newdat %>% dplyr::select(TankNum, treatment)
+sed1 <- left_join(newdat1, sed)
+sed2 <- sed1 %>% filter(! treatment %in% c(5,6,9,10,13,14))
+dat2 <- dat %>% dplyr::select(treatment, disturb, animal, TankNum)
+sed3 <- left_join(dat2,sed2)
+sed3$animal <- factor(sed3$animal,levels = c("none", "snail", "daphnia", "both"))
 
+ggplot(data = sed3, aes(as.factor(treatment), sediment)) + geom_boxplot()
+```
+
+
+```{r sediment model}
+
+sedmod <- lm(sediment ~ animal,data = sed3, subset=(disturb=="y") ) ## hmm do all my models need random effect of tank??-- i only have 2 measurement per tank...so that doesn't seem doable but should i do something? 
+
+plot(resid(sedmod))
+qqnorm(resid(sedmod)) ## yeah not good
+qqline(resid(sedmod),col=2) 
+hist(resid(sedmod),col="gray")
+
+sedmulti <- multcomp::glht(sedmod,inverse_cont)
+(sed_summ <- summary(sedmulti))
+plot(sedmulti)
+e1_sed <-  emmeans(sedmod, ~animal)
+
+plot(e1_sed)
+
+
+```
+egg casing
+```{r daphnia egg cases}
+egg <- read.csv("egg_case.csv")
+names(egg) <- c("TankNum","eggs")
+egg1 <- left_join(newdat1, egg)
+egg2 <- egg1 %>% filter(! treatment %in% c(5,6,9,10,13,14))
+egg3 <- left_join(dat2,egg2)
+egg3$animal <- factor(egg3$animal,levels = c("none", "snail", "daphnia", "both"))
+
+```
+
+```{r egg case model}
+
+eggmod <- glm(eggs ~ animal, family = "binomial", data = egg3, subset=(disturb=="y"))
+
+```
+
+daphnia populations
+daphnia size ratios
