@@ -258,7 +258,7 @@ mm <- multcomp::glht(maxmod,inverse_cont)
 plot(mm)
 ## broom::tidy(m1) ##  sucks, unfortunately
 coef(maxmod)  ## compare to coefficients
-e2 <-  emmeans(maxmod, ~animal)
+e2 <-  emmeans(maxmod, ~animal, type = "response")
 
 plot(e2)
 
@@ -354,10 +354,10 @@ plot(e1_max)
 
 ```{r sediment data}
 sed <- read.csv("sediment.csv")
-newdat1 <- newdat %>% dplyr::select(TankNum, treatment)
+newdat1 <- newdat %>%filter(ExptDay == 1)%>% dplyr::select(TankNum, treatment)
 sed1 <- left_join(newdat1, sed)
 sed2 <- sed1 %>% filter(! treatment %in% c(5,6,9,10,13,14))
-dat2 <- dat %>% dplyr::select(treatment, disturb, animal, TankNum)
+dat2 <- dat %>% filter(ExptDay==1)%>%dplyr::select(treatment, disturb, animal, TankNum)
 sed3 <- left_join(dat2,sed2)
 sed3$animal <- factor(sed3$animal,levels = c("none", "snail", "daphnia", "both"))
 
@@ -391,12 +391,11 @@ egg1 <- left_join(newdat1, egg)
 egg2 <- egg1 %>% filter(! treatment %in% c(5,6,9,10,13,14))
 egg3 <- left_join(dat2,egg2)
 egg3$animal <- factor(egg3$animal,levels = c("none", "snail", "daphnia", "both"))
-
+egg4 <- egg3 %>% filter(animal %in% c("both","daphnia"))
 ```
 
 ```{r egg case model}
-
-eggmod <- glm(eggs ~ animal, family = "binomial", data = egg3, subset=(disturb=="y"))
+eggmod <- glm(eggs~animal*disturb, family = binomial(link= logit), data = egg4)
 
 ```
 
