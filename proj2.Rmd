@@ -336,7 +336,8 @@ plot(e1_amm)
 
 max Nh4 post disturbance
 ```{r ammonium max}
-nh_max <- dat %>% filter(disturb == "y") %>% filter(ExptDay >= ExptDay[which(dat$Disturbed=="y")])
+max_day <- dat[which(dat$Disturbed=="y"), ]
+nh_max <- dat %>% filter(disturb == "y") %>% filter(ExptDay >= max_day$ExptDay) ## no bc needs to match by tank
 nh_max1 <- nh_max %>% group_by(TankNum) %>% mutate(max_nh4= max(NH4,na.rm = T))
 nh_max1$animal <- factor(nh_max1$animal, levels = c("none", "snail", "daphnia", "both"))
 
@@ -400,4 +401,62 @@ eggmod <- glm(eggs~animal*disturb, family = binomial(link= logit), data = egg4)
 ```
 
 daphnia populations
-daphnia size ratios
+```{r daphnia populations}
+pop1 <- pop %>% filter(! treatment %in% c(5,6,9,10,13,14))
+pop1$disturb <- "X"
+  
+for (i in 1:nrow(pop1)){
+  if (pop1$treatment[i] ==2| pop1$treatment[i] ==4| pop1$treatment[i] ==8|
+      pop1$treatment[i] ==12){
+    pop1$disturb[i] <- "y"
+  } else if (pop1$treatment[i] ==1|pop1$treatment[i] ==3|pop1$treatment[i] ==7|pop1$treatment[i] ==11){
+    pop1$disturb[i] <- "n"
+  }}
+
+pop1$animal <- "X"
+
+for (i in 1:nrow(pop1)){
+  if (pop1$treatment[i] ==3| pop1$treatment[i] ==4){
+    pop1$animal[i] <- "daphnia"
+  } else if (pop1$treatment[i] ==7|pop1$treatment[i] ==8){
+    pop1$animal[i] <- "snail"
+  } else if (pop1$treatment[i] ==11|pop1$treatment[i] ==12){
+    pop1$animal[i] <- "both"}
+  else if (pop1$treatment[i] ==1|pop1$treatment[i] ==2){
+    pop1$animal[i] <- "none"}
+}
+
+popA <- pop1 %>% dplyr::select(TankNum, treatment,animal, disturb, ExptDay, DaphniaC1Adult,DaphniaC2Adult,DaphniaC3,
+                       DaphniaC4Adult,Liters, DaphniaC1Juv,DaphniaC2Juv,DaphniaC3Juv,
+                       DaphniaC4Juv)
+popA <- popA %>% gather(key = "subsample", value= "count", -c(TankNum,treatment, ExptDay, Liters, animal, disturb))
+
+```
+
+Final Population
+```{r daphnia final pop}
+pop_fin <- popA %>% group_by(TankNum) %>% filter(ExptDay == max(ExptDay))
+
+## maybe this is weird bc treating adult adn juv the same- maybe artifically increasing the number of subsamples
+daph_fin_mod <- glmer(count ~ animal + (1|TankNum), subset = (disturb=="y"), data = pop_fin, family = "poisson" )
+plot(resid(daph_fin_mod))
+qqnorm(resid(daph_fin_mod))
+
+
+
+
+```
+
+
+Max population- post disturbance
+```{r daphnia max}
+daph_dist <- popA %>% filter(ExptDay >= max_day$ExptDay)
+
+```
+
+
+
+Growth post disturbance
+
+
+
