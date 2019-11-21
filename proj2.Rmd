@@ -280,10 +280,10 @@ Could do this with GAMs: https://rpubs.com/bbolker/ratgrowthcurves
 
 Algal resistance, compare slope over time after disturbance
 ```{r algal slope}
-dat_dist <- transform(dat_dist,ExptDay0 = ExptDay-min(ExptDay,na.rm=TRUE))
+dat_dist1 <- transform(dat_dist,ExptDay0 = ExptDay-min(ExptDay,na.rm=TRUE))
 
 mod_res <- lmer(log10(adj_chl) ~ animal*ExptDay0 + (1|TankNum),
-                data = dat_dist,
+                data = dat_dist1,
                 subset=(disturb=="y" & ExptDay0<=5))
 summary(mod_res)
 plot(resid(mod_res))
@@ -336,9 +336,8 @@ plot(e1_amm)
 
 max Nh4 post disturbance
 ```{r ammonium max}
-max_day <- dat[which(dat$Disturbed=="y"), ]
-nh_max <- dat %>% filter(disturb == "y") %>% filter(ExptDay >= max_day$ExptDay) ## no bc needs to match by tank
-nh_max1 <- nh_max %>% group_by(TankNum) %>% mutate(max_nh4= max(NH4,na.rm = T))
+
+nh_max1 <- dat_dist %>% group_by(TankNum) %>% mutate(max_nh4= max(NH4,na.rm = T))
 nh_max1$animal <- factor(nh_max1$animal, levels = c("none", "snail", "daphnia", "both"))
 
 nh4_max_mod <- lm(max_nh4 ~ animal, data = nh_max1)
@@ -442,7 +441,9 @@ daph_fin_mod <- glmer(count ~ animal + (1|TankNum), subset = (disturb=="y"), dat
 plot(resid(daph_fin_mod))
 qqnorm(resid(daph_fin_mod))
 
+e1_pop <-  emmeans(daph_fin_mod, ~animal, type = "response")
 
+plot(e1_pop)
 
 
 ```
@@ -450,13 +451,24 @@ qqnorm(resid(daph_fin_mod))
 
 Max population- post disturbance
 ```{r daphnia max}
-daph_dist <- popA %>% filter(ExptDay >= max_day$ExptDay)
+dd <- dat_dist %>% filter(! treatment %in% c(5,6,9,10,13,14))%>% filter(animal %in% c("both","daphnia")) %>% dplyr::select(TankNum, ExptDay) %>%
+  group_by(TankNum) %>% filter(ExptDay == min(ExptDay))  
+names(dd) <- c("TankNum", "E1")
+dd1 <- left_join(popA,dd, by= "TankNum")
+daph_dist <- dd1 %>% filter(ExptDay >= E1)
+daph_avg_pop <- daph_dist %>% group_by(TankNum, ExptDay) %>% 
+  mutate(pop = mean(count, na.rm= TRUE), sdpop= sd(count, na.rm = T))
+daph_max <- daph_avg_pop %>% group_by(TankNum) %>% filter(pop == max(pop))
+
+daph_max_mod <- lm(log(pop) ~ animal*disturb, data = daph_max, weights = sdpop)
+plot(resid(daph_max_mod))
+qqnorm(resid(daph_max_mod))
 
 ```
 
 
 
-Growth post disturbance
+
 
 
 

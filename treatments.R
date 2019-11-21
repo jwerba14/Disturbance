@@ -70,11 +70,11 @@ for (i in 1:nrow(dat)){
                dat$TankNum[i] ==75|dat$TankNum[i] ==100|dat$TankNum[i] ==101|
                dat$TankNum[i] ==131|dat$TankNum[i] ==140){
       dat$treatment[i] <- 9
-      } else if (dat$TankNum[i] ==12|dat$TankNum[i] ==38|dat$TankNum[i] ==54|
+      } else if (dat$TankNum[i] ==4|dat$TankNum[i] ==12|dat$TankNum[i] ==38|dat$TankNum[i] ==54|
                  dat$TankNum[i] ==68|dat$TankNum[i] ==74|dat$TankNum[i] ==92|dat$TankNum[i] ==106|dat$TankNum[i] ==118|
                  dat$TankNum[i] ==136){
         dat$treatment[i] <- 10
-      } else if (dat$TankNum[i] ==4|dat$TankNum[i] ==5|dat$TankNum[i] ==10|dat$TankNum[i] ==23|
+      } else if (dat$TankNum[i] ==5|dat$TankNum[i] ==10|dat$TankNum[i] ==23|
                  dat$TankNum[i] ==44|dat$TankNum[i] ==83|
                  dat$TankNum[i] ==84|dat$TankNum[i] ==87|dat$TankNum[i] ==114|
                  dat$TankNum[i] ==121|dat$TankNum[i] ==127){
