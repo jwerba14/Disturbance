@@ -129,7 +129,7 @@ inverse_cont <- matrix(nrow = 4, ncol = 4
 
 dimnames(inverse_cont) <- list(
 
-  c( ": snail",": daphnia", ": s vs d", ": both")
+  c( ": snail_vs_none",": daphnia_vs_none", ": s vs d", ": both")
   ,   levels(dat1$animal)
 )
 
@@ -165,6 +165,13 @@ finmodth <- lm(log10(adj_chl) ~ -1 + animal, data = dat1)
 ## two options look identical
 
 m1 <- multcomp::glht(finmod00,inverse_cont)
+
+## perc diff between treatments
+perc_diff <- function(a) {
+  ((10^a)-1)*100
+}
+perc_diff(confint(m1)$confint)
+
 (s <- summary(m1))
 plot(m1)
 ## broom::tidy(m1) ##  sucks, unfortunately
@@ -279,7 +286,8 @@ ggplot(dat_dist,
 Could do this with GAMs: https://rpubs.com/bbolker/ratgrowthcurves
 
 Algal resistance, compare slope over time after disturbance
-```{r algal slope}
+```{r algal slope, eval=FALSE}
+## this might not work ... not evaluated ...
 dat_dist1 <- transform(dat_dist,ExptDay0 = ExptDay-min(ExptDay,na.rm=TRUE))
 
 mod_res <- lmer(log10(adj_chl) ~ animal*ExptDay0 + (1|TankNum),
@@ -307,7 +315,8 @@ summary(m2)
 ```
 
 Graph algae
-```{r graph algae, echo=FALSE}
+```{r graph algae, echo=FALSE, eval=FALSE}
+## not evaluated
 s <- summary(mod2)
 coef_dat <- s$coefficients
 coef_dat2 <- data.frame(
@@ -396,7 +405,17 @@ egg4 <- egg3 %>% filter(animal %in% c("both","daphnia"))
 
 ```{r egg case model}
 eggmod <- glm(eggs~animal*disturb, family = binomial(link= logit), data = egg4)
-
+## estimate main effects at midpoint by using sum-to-zero contrasts
+## (probably better)
+eggmod_cs <- update(eggmod, contrasts=list(animal=contr.sum,disturb=contr.sum))
+```
+```{r plot_eggcases}
+## 1. this is probably the best representation
+plot(emmeans(eggmod,~animal*disturb),type="response")
+## if you want to plot this yourself:
+dd <- as.data.frame(emmeans(eggmod,~animal*disturb),type="response")
+## or plot the coefficients (probably not what you want)
+dotwhisker::dwplot(eggmod)+geom_vline(xintercept=0,lty=2)
 ```
 
 daphnia populations
