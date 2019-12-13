@@ -199,6 +199,15 @@ hist(resid(finmod00sq),col="gray")
 
 ```
 
+```{r plot chl end}
+grdat1 <- data.frame(e1)
+
+gg <- ggplot(data = grdat1, aes(animal, response)) + geom_point(size = 3) + 
+  geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Final Chl a (ug/L)") + 
+  xlab(" ")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank())
+
+```
+
 
 Max Chl - 
 
@@ -271,6 +280,15 @@ plot(e2)
 
 ```
 
+```{r plot max chl}
+grdat2 <- data.frame(e2)
+
+g1 <- ggplot(data = grdat2, aes(animal, response)) + geom_point(size = 3) + 
+  geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Maximum Chl a (ug/L)") + 
+  xlab(" ")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank())
+
+```
+
 ```{r plot chl slope}
 ggplot(dat_dist,
        aes(x=ExptDay,adj_chl,
@@ -314,17 +332,6 @@ summary(m2)
 ## need to double-check this
 ```
 
-Graph algae
-```{r graph algae, echo=FALSE, eval=FALSE}
-## not evaluated
-s <- summary(mod2)
-coef_dat <- s$coefficients
-coef_dat2 <- data.frame(
-  coefficients = row.names(coef_dat),
-  estimate = coef_dat[,1],
-  std_error = coef_dat[,2]
-)
-```
 
 NH4 resilience, final time point
 ```{r ammonium final}
@@ -339,6 +346,15 @@ plot(amm1)
 e1_amm <-  emmeans(amm_end, ~animal)
 
 plot(e1_amm)
+
+```
+
+```{r plot final ammonium}
+grdat3 <- data.frame(e1_amm)
+
+g2 <- ggplot(data = grdat3, aes(animal, emmean)) + geom_point(size = 3) + 
+  geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Final NH4-N (mg/L)") + 
+  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank())
 
 ```
 
@@ -359,6 +375,20 @@ e1_max <-  emmeans(nh4_max_mod, ~animal)
 plot(e1_max)
 
 ```
+
+
+```{r plot max nh4}
+grdat4 <- data.frame(e1_max)
+
+g3 <- ggplot(data = grdat4, aes(animal, emmean)) + geom_point(size = 3) + 
+  geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Maximum NH4-N (mg/L)") + 
+  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank())
+library(gridExtra)
+
+grid.arrange(gg, g1,g2, g3, nrow =2)
+
+```
+
 
 
 ```{r sediment data}
