@@ -1,4 +1,4 @@
-TankNum,Month,Day ,Year,ExptDay,DaphniaC1Adult,DaphniaC1Juv,DaphniaC2Adult,DaphniaC2Juv,DaphniaC3,DaphniaC3Juv,DaphniaC4Adult,DaphniaC4Juv,CerioC1,CerioC2,CerioC3,CerioC4,Invaded (Y/N),Species1,Count1,Species2,Count2,Snails,Liters,Notes,Observer,EnteredBy,CheckedBy
+TankNum,Month,day ,Year,Exptday,daphniaC1Adult,daphniaC1Juv,daphniaC2Adult,daphniaC2Juv,daphniaC3,daphniaC3Juv,daphniaC4Adult,daphniaC4Juv,CerioC1,CerioC2,CerioC3,CerioC4,Invaded (Y/N),Species1,Count1,Species2,Count2,Snails,Liters,Notes,Observer,EnteredBy,CheckedBy
 1,January,21,2019,1,1,0,1,0,1,0,1,0,,,,,n,,,,,,1,,jw,jw,Ofure
 1,January,24,2019,4,0,0,3,1,0,1,0,0,,,,,n,,,,,,1,,jw,jw,Ofure
 1,January,28,2019,8,1,0,5,1,3,0,0,3,,,,,n,,,,,,1.1,,jw,jw,Ofure
@@ -466,7 +466,7 @@ TankNum,Month,Day ,Year,ExptDay,DaphniaC1Adult,DaphniaC1Juv,DaphniaC2Adult,Daphn
 53,February,25,2019,29,34,45,33,44,56,48,52,49,0,0,0,0,n,,,,,3,0.64,,,lsb,Ofure
 53,February,28,2019,32,46,83,50,71,33,44,54,55,0,0,0,0,y,copepod,1,,,3,0.7,,,lsb,Ofure
 53,March,4,2019,36,51,73,39,62,50,77,42,60,0,0,0,0,n,,,,,3,6,,,lsb,Ofure
-53,March,7,2019,39,30,49,32,41,36,58,31,50,0,0,0,0,y,copepod,1,,,3/2,0.56,,,lsb,Ofure
+53,March,7,2019,39,30,49,32,41,36,58,31,50,0,0,0,0,y,copepod,1,,,02-Mar,0.56,,,lsb,Ofure
 54,January,28,2019,1,0.5,0,0.5,0,0.5,0,0.5,0,3,3,3,3,n,,,,,,1,,,lsb,Ofure
 54,January,31,2019,4,0,0,1,0,0,0,1,0,0,0,1,0,n,,,,,,,,,lsb,Ofure
 54,February,4,2019,8,0,0,2,0,1,0,1,0,0,0,0,0,n,,,,,,,,,lsb,Ofure

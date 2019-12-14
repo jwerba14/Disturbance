@@ -17,6 +17,7 @@ library(tidyquant)
 library(emmeans)
 library(multcomp)
 library(lmerTest)
+library(gridExtra)
 ```
 
 
@@ -383,7 +384,7 @@ grdat4 <- data.frame(e1_max)
 g3 <- ggplot(data = grdat4, aes(animal, emmean)) + geom_point(size = 3) + 
   geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Maximum NH4-N (mg/L)") + 
   xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank())
-library(gridExtra)
+
 
 grid.arrange(gg, g1,g2, g3, nrow =2)
 
@@ -406,7 +407,7 @@ ggplot(data = sed3, aes(as.factor(treatment), sediment)) + geom_boxplot()
 
 ```{r sediment model}
 
-sedmod <- lm(sediment ~ animal,data = sed3, subset=(disturb=="y") ) ## hmm do all my models need random effect of tank??-- i only have 2 measurement per tank...so that doesn't seem doable but should i do something? 
+sedmod <- lm(log(sediment) ~ animal,data = sed3, subset=(disturb=="y") ) ## hmm do all my models need random effect of tank??-- i only have 2 measurement per tank...so that doesn't seem doable but should i do something? 
 
 plot(resid(sedmod))
 qqnorm(resid(sedmod)) ## yeah not good
@@ -416,12 +417,22 @@ hist(resid(sedmod),col="gray")
 sedmulti <- multcomp::glht(sedmod,inverse_cont)
 (sed_summ <- summary(sedmulti))
 plot(sedmulti)
-e1_sed <-  emmeans(sedmod, ~animal)
+e1_sed <-  emmeans(sedmod, ~animal,type = "response" )
 
 plot(e1_sed)
 
 
 ```
+```{r plot sediment}
+grdat5 <- data.frame(e1_sed)
+
+g3 <- ggplot(data = grdat5, aes(animal, response)) + geom_point(size = 3) + 
+  geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Sediment (mL)") + 
+  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank())
+
+```
+
+
 egg casing
 ```{r daphnia egg cases}
 egg <- read.csv("egg_case.csv")
@@ -439,13 +450,19 @@ eggmod <- glm(eggs~animal*disturb, family = binomial(link= logit), data = egg4)
 ## (probably better)
 eggmod_cs <- update(eggmod, contrasts=list(animal=contr.sum,disturb=contr.sum))
 ```
+
+
 ```{r plot_eggcases}
 ## 1. this is probably the best representation
 plot(emmeans(eggmod,~animal*disturb),type="response")
 ## if you want to plot this yourself:
 dd <- as.data.frame(emmeans(eggmod,~animal*disturb),type="response")
 ## or plot the coefficients (probably not what you want)
-dotwhisker::dwplot(eggmod)+geom_vline(xintercept=0,lty=2)
+##dotwhisker::dwplot(eggmod)+geom_vline(xintercept=0,lty=2)
+dd$treat <- paste(dd$animal,dd$disturb)
+
+eggg <- ggplot(data = dd, aes(treat, prob)) + geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL, color= disturb), width = 0.3)+ ylab("Probablity Egg Cases Present") + 
+  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) 
 ```
 
 daphnia populations
@@ -474,26 +491,71 @@ for (i in 1:nrow(pop1)){
     pop1$animal[i] <- "none"}
 }
 
-popA <- pop1 %>% dplyr::select(TankNum, treatment,animal, disturb, ExptDay, DaphniaC1Adult,DaphniaC2Adult,DaphniaC3,
-                       DaphniaC4Adult,Liters, DaphniaC1Juv,DaphniaC2Juv,DaphniaC3Juv,
-                       DaphniaC4Juv)
-popA <- popA %>% gather(key = "subsample", value= "count", -c(TankNum,treatment, ExptDay, Liters, animal, disturb))
+popA <- pop1 %>% dplyr::select(TankNum, treatment,animal, disturb, Exptday, daphniaC1Adult,daphniaC2Adult,daphniaC3,
+                       daphniaC4Adult,Liters, daphniaC1Juv,daphniaC2Juv,daphniaC3Juv,
+                       daphniaC4Juv)
+popA <- popA %>% gather(key = "subsample", value= "count", -c(TankNum,treatment, Exptday, Liters, animal, disturb))
+
+popB <- popA %>% separate(subsample, into=c("daphnia","subsample","stage"),sep ='([[:upper:]])', extra = "drop", fill = "right" )
+
+
+popB <- popB %>% group_by(TankNum, Exptday, subsample, animal, disturb) %>% 
+  summarize(total = sum(count))
 
 ```
 
 Final Population
 ```{r daphnia final pop}
-pop_fin <- popA %>% group_by(TankNum) %>% filter(ExptDay == max(ExptDay))
+pop_fin <- popB %>% group_by(TankNum) %>% filter(Exptday == max(Exptday))
 
-## maybe this is weird bc treating adult adn juv the same- maybe artifically increasing the number of subsamples
-daph_fin_mod <- glmer(count ~ animal + (1|TankNum), subset = (disturb=="y"), data = pop_fin, family = "poisson" )
+pop_fin$treat <- paste(pop_fin$animal,pop_fin$disturb)
+
+## desired contrasts 
+## bothY vs bothN,
+## daphnia Y vs Daphnia N
+## daphnia Y vs both Y
+
+pop_fin$treat <- factor(pop_fin$treat, levels = c("daphnia n", "both n", "daphnia y", "both y"))
+inverse_contp <- matrix(nrow = 3, ncol = 4
+  , data = c(
+    1  ,   0,      -1,    0   ##  daphnia n vs daphnia y
+  , 0  ,   1,     0,    -1    ## both n vs both y
+  , 0  ,   1,    -1,    0     ## both y vs daphnia y
+  )
+  , byrow = TRUE)
+
+
+
+dimnames(inverse_contp) <- list(
+
+  c( "daphn_vs_daphy","bothn_vs_bothy", "bothy_vs_daphy")
+  ,   levels(pop_fin$treat)
+)
+
+
+
+daph_fin_mod <- glmer(total ~ treat + (1|TankNum),data = pop_fin, family = "poisson" )
 plot(resid(daph_fin_mod))
 qqnorm(resid(daph_fin_mod))
 
-e1_pop <-  emmeans(daph_fin_mod, ~animal, type = "response")
+pp <- multcomp::glht(daph_fin_mod,inverse_contp)
+summary(pp)
+
+e1_pop <-  emmeans(daph_fin_mod, ~treat, type = "response")
 
 plot(e1_pop)
 
+
+```
+
+```{r plot final pop}
+popgd <- data.frame(e1_pop)
+popgd <- popgd %>% separate(treat,into=c("animal","disturb"),sep =' ' )
+popgd$treat <- paste(popgd$animal,popgd$disturb)
+
+popg <- ggplot(data = popgd, aes(treat,rate)) +  
+   geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL, color= disturb), width = 0.3)+ ylab("Daphnia magna per 10mL") + 
+  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + ggtitle("Final Population")+ theme(legend.position = "none") 
 
 ```
 
@@ -503,20 +565,42 @@ Max population- post disturbance
 dd <- dat_dist %>% filter(! treatment %in% c(5,6,9,10,13,14))%>% filter(animal %in% c("both","daphnia")) %>% dplyr::select(TankNum, ExptDay) %>%
   group_by(TankNum) %>% filter(ExptDay == min(ExptDay))  
 names(dd) <- c("TankNum", "E1")
-dd1 <- left_join(popA,dd, by= "TankNum")
-daph_dist <- dd1 %>% filter(ExptDay >= E1)
-daph_avg_pop <- daph_dist %>% group_by(TankNum, ExptDay) %>% 
-  mutate(pop = mean(count, na.rm= TRUE), sdpop= sd(count, na.rm = T))
+dd1 <- left_join(popB,dd, by= "TankNum")
+daph_dist <- dd1 %>% filter(Exptday >= E1)
+daph_avg_pop <- daph_dist %>% group_by(TankNum, Exptday) %>% 
+  mutate(pop = mean(total, na.rm= TRUE), sdpop= sd(total, na.rm = T))
 daph_max <- daph_avg_pop %>% group_by(TankNum) %>% filter(pop == max(pop))
 
-daph_max_mod <- lm(log(pop) ~ animal*disturb, data = daph_max, weights = sdpop)
+daph_max$treat <- paste(daph_max$animal, daph_max$disturb)
+
+daph_max_mod <- lm(log(pop) ~ treat, data = daph_max, weights = sdpop)
+
 plot(resid(daph_max_mod))
 qqnorm(resid(daph_max_mod))
+
+
+
 
 ```
 
 
+```{r contrasts pop max}
+pm <- multcomp::glht(daph_max_mod,inverse_contp)
+summary(pm)
 
+e2_pop <-  emmeans(daph_max_mod, ~treat, type = "response")
+
+popmg <- data.frame(e2_pop)
+popmg <- popmg %>% separate(treat,into=c("animal","disturb"),sep =' ' )
+popmg$treat <- paste(popmg$animal,popmg$disturb)
+
+popg_max <- ggplot(data = popmg, aes(treat,response)) +  
+   geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= lower.CL, ymax=upper.CL, color= disturb), width = 0.3)+ ylab(" ") + 
+  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + ggtitle("Maximum population")
+
+grid.arrange(popg, popg_max, nrow = 1)
+
+```
 
 
 
