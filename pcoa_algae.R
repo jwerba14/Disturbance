@@ -4,7 +4,8 @@ source("fix_chl.R")
 source("Graphing_Set_Up.R")
 ### additional packages 
 library(vegan)
-
+library(gridExtra)
+library(ggplot2)
 
 dat <- newdat %>% filter(! treatment %in% c(5,6,9,10,13,14))
 
@@ -150,22 +151,33 @@ graph_dat_end_sum <- graph_dat_end %>%
     geom_point(aes(color = animal, shape = disturb), size = 5) +
     geom_errorbar(aes(ymax= Axis2+sd2, ymin= Axis2-sd2)) + 
     geom_errorbarh(aes(xmax=Axis1+sd1, xmin=Axis1-sd1)) + xlab("Axis 1 (63%)") +
-    ylab("Axis 2 (18%)") )
+    ylab("Axis 2 (18%)") + ggtitle("Starting Conditions")+
+    theme(legend.position = "none")+ scale_x_continuous(limits = c(-.75, 0.75))+
+    theme(axis.line = element_line(colour = "black"), panel.border = element_blank()))
 
 # Midpoint 
-(g1 <- ggplot(data = graph_dat_midpt_sum, aes(Axis1,Axis2)) + 
+(g2 <- ggplot(data = graph_dat_midpt_sum, aes(Axis1,Axis2)) + 
     geom_point(aes(color = animal, shape = disturb), size = 5)  +
     geom_errorbar(aes(ymax= Axis2+sd2, ymin= Axis2-sd2)) + 
     geom_errorbarh(aes(xmax=Axis1+sd1, xmin=Axis1-sd1)) + xlab("Axis 1 (45%)") +
-    ylab("Axis 2 (17%)") )
+    ylab("Axis 2 (17%)")+ ggtitle("Mid-Point")+ 
+    theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) +
+    theme(legend.position = "none")+scale_x_continuous(limits = c(-.75, 0.75)))
 
 
 # Final day
-(g1 <- ggplot(data = graph_dat_end_sum, aes(Axis1,Axis2)) + 
+(g3 <- ggplot(data = graph_dat_end_sum, aes(Axis1,Axis2)) + 
     geom_point(aes(color = animal, shape = disturb), size = 5)  +
     geom_errorbar(aes(ymax= Axis2+sd2, ymin= Axis2-sd2)) + 
     geom_errorbarh(aes(xmax=Axis1+sd1, xmin=Axis1-sd1)) + xlab("Axis 1 (38%)") +
-    ylab("Axis 2 (17%)") )
+    ylab("Axis 2 (17%)") + ggtitle("Final Day") + scale_x_continuous(limits = c(-.75, 0.75))+
+    theme(axis.line = element_line(colour = "black"), panel.border = element_blank())+
+    theme(legend.position=c(0.9,0.9), legend.direction = "vertical",
+          legend.background = element_rect(fill = "transparent"), legend.box="horizontal") +
+    labs(shape="Disturbance", color = "Grazer")+
+    guides(shape = guide_legend(order = 1)))
+
+grid.arrange(g1,g2,g3)
 
 
 
