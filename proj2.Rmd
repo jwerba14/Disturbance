@@ -115,8 +115,9 @@ dat1 <- end %>% filter(disturb == "y")
 ## Put the order of the factors in a more reasonable order
 dat1$animal <- factor(dat1$animal, levels = c("none", "snail", "daphnia", "both"))
 
+```
 
-
+```{r contrast set up 1}
 inverse_cont <- matrix(nrow = 4, ncol = 4
   , data = c(
     1  ,  -1,      0,    0   ## snail vs none
@@ -147,6 +148,10 @@ dimnames(inverse_cont) <- list(
 ## it is only 2 points that are less than 0 so dropping them seems reasonable-- and 2 NAs that need to 
 ## be checked with data sheets
 
+```
+
+
+```{r chl final model}
 dat1 <- dat1 %>% filter(!is.na(adj_chl))
 
 
@@ -205,7 +210,7 @@ grdat1 <- data.frame(e1)
 
 gg <- ggplot(data = grdat1, aes(animal, response)) + geom_point(size = 3) + 
   geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Final Chl a (ug/L)") + 
-  xlab(" ")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank())
+  xlab(" ")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("A.")
 
 ```
 
@@ -263,7 +268,7 @@ max_chl$animal <- as.factor(max_chl$animal)
 ## Put the order of the factors in a more reasonable order
 max_chl$animal <- factor(max_chl$animal, levels = c("none", "snail", "daphnia", "both"))
 
-maxmod <- lm(log(mean_3) ~ animal, data = max_chl)
+maxmod <- lm(log10(mean_3) ~ animal, data = max_chl)
 
 plot(resid(maxmod)) ##hmm definitely seems like a pattern but there aren't that many points
 plot.new()
@@ -273,11 +278,15 @@ hist(resid(maxmod),col="gray")
 mm <- multcomp::glht(maxmod,inverse_cont)
 (ss <- summary(mm))
 plot(mm)
-## broom::tidy(m1) ##  sucks, unfortunately
+
+perc_diff(confint(mm)$confint)
+
 coef(maxmod)  ## compare to coefficients
 e2 <-  emmeans(maxmod, ~animal, type = "response")
 
 plot(e2)
+
+
 
 ```
 
@@ -286,51 +295,8 @@ grdat2 <- data.frame(e2)
 
 g1 <- ggplot(data = grdat2, aes(animal, response)) + geom_point(size = 3) + 
   geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Maximum Chl a (ug/L)") + 
-  xlab(" ")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank())
+  xlab(" ")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("B.")
 
-```
-
-```{r plot chl slope}
-ggplot(dat_dist,
-       aes(x=ExptDay,adj_chl,
-           colour=animal,
-           shape=disturb))+geom_point()+
-  scale_y_log10() +
-  facet_wrap(~disturb)+
-  geom_smooth(method="gam",formula=y~s(x,k=10,bs="cs"),
-              method.args=list(method="REML"))+
-  geom_line(aes(group=TankNum),alpha=0.1)
-```
-
-Could do this with GAMs: https://rpubs.com/bbolker/ratgrowthcurves
-
-Algal resistance, compare slope over time after disturbance
-```{r algal slope, eval=FALSE}
-## this might not work ... not evaluated ...
-dat_dist1 <- transform(dat_dist,ExptDay0 = ExptDay-min(ExptDay,na.rm=TRUE))
-
-mod_res <- lmer(log10(adj_chl) ~ animal*ExptDay0 + (1|TankNum),
-                data = dat_dist1,
-                subset=(disturb=="y" & ExptDay0<=5))
-summary(mod_res)
-plot(resid(mod_res))
-qqnorm(resid(mod_res))
-mod_res2 <- lmer(log10(adj_chl) ~ -1 + animal + animal:ExptDay0 +
-                   (1|TankNum),  ## ExpDay0|TankNum ?
-                data = dat_dist,
-                subset=(disturb=="y" & ExptDay0<=5))
-
-inv_cont2 <- rbind(
-  cbind(inverse_cont,matrix(0,4,4)),
-  cbind(matrix(0,4,4),inverse_cont)
-)
-dimnames(inv_cont2) <- list(paste(rep(c("int","slope"),each=4),
-                                  rownames(inv_cont2)),
-                            names(fixef(mod_res2)))
-
-m2 <- multcomp::glht(mod_res2,inv_cont2)
-summary(m2)
-## need to double-check this
 ```
 
 
@@ -338,13 +304,15 @@ NH4 resilience, final time point
 ```{r ammonium final}
 finday1 <- finday %>% filter(disturb == "y")
 finday1$animal <- factor(finday1$animal,levels = c("none", "snail", "daphnia", "both")) 
-amm_end <- lm(data = finday1, NH4 ~ animal)
+amm_end <- lm(data = finday1, NH4 ~ -1+ animal)
 
 
 amm1 <- multcomp::glht(amm_end,inverse_cont)
 (samm <- summary(amm1))
 plot(amm1)
 e1_amm <-  emmeans(amm_end, ~animal)
+
+
 
 plot(e1_amm)
 
@@ -355,7 +323,7 @@ grdat3 <- data.frame(e1_amm)
 
 g2 <- ggplot(data = grdat3, aes(animal, emmean)) + geom_point(size = 3) + 
   geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Final NH4-N (mg/L)") + 
-  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank())
+  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("C.")
 
 ```
 
@@ -366,13 +334,17 @@ max Nh4 post disturbance
 nh_max1 <- dat_dist %>% group_by(TankNum) %>% mutate(max_nh4= max(NH4,na.rm = T))
 nh_max1$animal <- factor(nh_max1$animal, levels = c("none", "snail", "daphnia", "both"))
 
-nh4_max_mod <- lm(max_nh4 ~ animal, data = nh_max1)
+nh4_max_mod <- lm(max_nh4 ~ -1+animal, data = nh_max1)
 
 amm_max <- multcomp::glht(nh4_max_mod,inverse_cont)
 (smax <- summary(amm_max))
 plot(amm_max)
 e1_max <-  emmeans(nh4_max_mod, ~animal)
 
+## percent difference
+## wasn't sure how to do this efficiently took estimates from main model 
+## treatment diff/ mean(treatments)
+## but not clear how to get CI on this.. have CI on differance (confint(amm_max)$confint)
 plot(e1_max)
 
 ```
@@ -383,7 +355,7 @@ grdat4 <- data.frame(e1_max)
 
 g3 <- ggplot(data = grdat4, aes(animal, emmean)) + geom_point(size = 3) + 
   geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Maximum NH4-N (mg/L)") + 
-  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank())
+  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("D.")
 
 
 grid.arrange(gg, g1,g2, g3, nrow =2)
@@ -407,7 +379,7 @@ ggplot(data = sed3, aes(as.factor(treatment), sediment)) + geom_boxplot()
 
 ```{r sediment model}
 
-sedmod <- lm(log(sediment) ~ animal,data = sed3, subset=(disturb=="y") ) ## hmm do all my models need random effect of tank??-- i only have 2 measurement per tank...so that doesn't seem doable but should i do something? 
+sedmod <- lm(log10(sediment) ~ -1+ animal,data = sed3, subset=(disturb=="y") ) ## hmm do all my models need random effect of tank??-- i only have 2 measurement per tank...so that doesn't seem doable but should i do something? 
 
 plot(resid(sedmod))
 qqnorm(resid(sedmod)) ## yeah not good
@@ -421,6 +393,7 @@ e1_sed <-  emmeans(sedmod, ~animal,type = "response" )
 
 plot(e1_sed)
 
+perc_diff(confint(sedmulti)$confint)
 
 ```
 ```{r plot sediment}
@@ -461,8 +434,9 @@ dd <- as.data.frame(emmeans(eggmod,~animal*disturb),type="response")
 ##dotwhisker::dwplot(eggmod)+geom_vline(xintercept=0,lty=2)
 dd$treat <- paste(dd$animal,dd$disturb)
 
-eggg <- ggplot(data = dd, aes(treat, prob)) + geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL, color= disturb), width = 0.3)+ ylab("Probablity Egg Cases Present") + 
-  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) 
+eggg <- ggplot(data = dd, aes(treat, prob)) + geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL, color= disturb), width = 0.3)+ ylab("Probablity Ephippium Present") + 
+  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + 
+    labs(color="Disturbance", shape = "Grazer") 
 ```
 
 daphnia populations
@@ -555,7 +529,7 @@ popgd$treat <- paste(popgd$animal,popgd$disturb)
 
 popg <- ggplot(data = popgd, aes(treat,rate)) +  
    geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL, color= disturb), width = 0.3)+ ylab("Daphnia magna per 10mL") + 
-  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + ggtitle("Final Population")+ theme(legend.position = "none") 
+  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + ggtitle("A. Final Population")+ theme(legend.position = "none") 
 
 ```
 
@@ -585,7 +559,7 @@ qqnorm(resid(daph_max_mod))
 
 
 ```{r contrasts pop max}
-pm <- multcomp::glht(daph_max_mod,inverse_contp)
+pm <- multcomp::glht(daph_max_mod,inverse_contp) ## something about my contrasts is wrong
 summary(pm)
 
 e2_pop <-  emmeans(daph_max_mod, ~treat, type = "response")
@@ -595,10 +569,10 @@ popmg <- popmg %>% separate(treat,into=c("animal","disturb"),sep =' ' )
 popmg$treat <- paste(popmg$animal,popmg$disturb)
 
 popg_max <- ggplot(data = popmg, aes(treat,response)) +  
-   geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= lower.CL, ymax=upper.CL, color= disturb), width = 0.3)+ ylab(" ") + 
-  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + ggtitle("Maximum population")
+   geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= lower.CL, ymax=upper.CL, color= disturb), width = 0.3)+ ylab("Daphnia magna per 10 mL ") + 
+  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + ggtitle("B. Maximum population") + labs(color = "Disturbance", shape = "Grazer") + theme(legend.position = c(0.85,0.25), legend.box = "horizontal", legend.background = element_rect(fill = "transparent"))
 
-grid.arrange(popg, popg_max, nrow = 1)
+grid.arrange(popg, popg_max, nrow = 2)
 
 ```
 

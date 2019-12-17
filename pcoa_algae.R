@@ -151,7 +151,7 @@ graph_dat_end_sum <- graph_dat_end %>%
     geom_point(aes(color = animal, shape = disturb), size = 5) +
     geom_errorbar(aes(ymax= Axis2+sd2, ymin= Axis2-sd2)) + 
     geom_errorbarh(aes(xmax=Axis1+sd1, xmin=Axis1-sd1)) + xlab("Axis 1 (63%)") +
-    ylab("Axis 2 (18%)") + ggtitle("Starting Conditions")+
+    ylab("Axis 2 (18%)") + ggtitle("A. Starting Conditions")+
     theme(legend.position = "none")+ scale_x_continuous(limits = c(-.75, 0.75))+
     theme(axis.line = element_line(colour = "black"), panel.border = element_blank()))
 
@@ -160,7 +160,7 @@ graph_dat_end_sum <- graph_dat_end %>%
     geom_point(aes(color = animal, shape = disturb), size = 5)  +
     geom_errorbar(aes(ymax= Axis2+sd2, ymin= Axis2-sd2)) + 
     geom_errorbarh(aes(xmax=Axis1+sd1, xmin=Axis1-sd1)) + xlab("Axis 1 (45%)") +
-    ylab("Axis 2 (17%)")+ ggtitle("Mid-Point")+ 
+    ylab("Axis 2 (17%)")+ ggtitle("B. Mid-Point")+ 
     theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) +
     theme(legend.position = "none")+scale_x_continuous(limits = c(-.75, 0.75)))
 
@@ -170,7 +170,7 @@ graph_dat_end_sum <- graph_dat_end %>%
     geom_point(aes(color = animal, shape = disturb), size = 5)  +
     geom_errorbar(aes(ymax= Axis2+sd2, ymin= Axis2-sd2)) + 
     geom_errorbarh(aes(xmax=Axis1+sd1, xmin=Axis1-sd1)) + xlab("Axis 1 (38%)") +
-    ylab("Axis 2 (17%)") + ggtitle("Final Day") + scale_x_continuous(limits = c(-.75, 0.75))+
+    ylab("Axis 2 (17%)") + ggtitle("C. Final Day") + scale_x_continuous(limits = c(-.75, 0.75))+
     theme(axis.line = element_line(colour = "black"), panel.border = element_blank())+
     theme(legend.position=c(0.9,0.9), legend.direction = "vertical",
           legend.background = element_rect(fill = "transparent"), legend.box="horizontal") +
