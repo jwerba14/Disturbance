@@ -43,6 +43,99 @@ algal_day2 <- algal %>% filter(Round == 2)
 algal_day3 <- algal %>% filter(Round == 3)
 
 
+### determine percent of each algal species by day
+algal_day1_per <- algal_day1
+algal_day1_per$total <- rowSums(algal_day1_per[,-c(1:4)])
+
+algal_day1_per[, -c(1:4, ncol(algal_day1_per))] <- 
+  algal_day1_per[, -c(1:4, ncol(algal_day1_per))] / algal_day1_per$total
+
+summ_per_1 <- algal_day1_per %>% 
+  group_by(animal, disturb) %>% 
+  summarise_all(funs(mean)) %>% dplyr::select(-c(TankNum,Round))
+
+summ_per_1 <- summ_per_1 %>% gather(key = "species", value = "percent", -c(animal,disturb))
+
+
+summ_per_1_sd <- algal_day1_per %>% 
+  group_by(animal, disturb) %>% 
+  summarise_all(funs(sd)) %>% dplyr::select(-c(TankNum))
+summ_per_1_sd <- summ_per_1_sd %>% gather(key = "species", value = "sd", -c(animal,disturb))
+summ_per_1 <- left_join(summ_per_1, summ_per_1_sd)
+summ_per_1 <- summ_per_1 %>% filter(percent > 0.05, species != "total")
+
+
+(per1 <- ggplot(data = summ_per_1, aes(species,percent, color = animal, shape = disturb)) +
+    geom_pointrange(aes(ymin = percent-sd, ymax = percent+sd), 
+                    position=position_jitter(width=0.5)) + 
+   xlab("Species") +
+  ylab("Percent") + ggtitle("A. Starting Conditions")+
+  theme(legend.position = "none")+ 
+  theme(axis.line = element_line(colour = "black"), panel.border = element_blank()))
+ 
+  
+## day 2
+algal_day2_per <- algal_day2
+algal_day2_per$total <- rowSums(algal_day2_per[,-c(1:4)])
+
+algal_day2_per[, -c(1:4, ncol(algal_day2_per))] <- 
+  algal_day2_per[, -c(1:4, ncol(algal_day2_per))] / algal_day2_per$total
+
+summ_per_2 <- algal_day2_per %>% 
+  group_by(animal, disturb) %>% 
+  summarise_all(funs(mean)) %>% dplyr::select(-c(TankNum,Round))
+
+summ_per_2 <- summ_per_2 %>% gather(key = "species", value = "percent", -c(animal,disturb))
+
+
+summ_per_2_sd <- algal_day2_per %>% 
+  group_by(animal, disturb) %>% 
+  summarise_all(funs(sd)) %>% dplyr::select(-c(TankNum))
+summ_per_2_sd <- summ_per_2_sd %>% gather(key = "species", value = "sd", -c(animal,disturb))
+summ_per_2 <- left_join(summ_per_2, summ_per_2_sd)
+summ_per_2 <- summ_per_2 %>% filter(percent > 0.05, species != "total")
+
+(per2 <- ggplot(data = summ_per_2, aes(species,percent, color = animal, shape = disturb)) +
+    geom_pointrange(aes(ymin = percent-sd, ymax = percent+sd), 
+                    position=position_jitter(width=0.5)) + 
+    xlab("Species") +
+    ylab("Percent") + ggtitle("B. Mid-Point")+
+    theme(legend.position = "none")+ 
+    theme(axis.line = element_line(colour = "black"), panel.border = element_blank()))
+
+
+## day 3
+algal_day3_per <- algal_day3
+algal_day3_per$total <- rowSums(algal_day3_per[,-c(1:4)])
+
+algal_day3_per[, -c(1:4, ncol(algal_day3_per))] <- 
+  algal_day3_per[, -c(1:4, ncol(algal_day3_per))] / algal_day3_per$total
+
+summ_per_3 <- algal_day3_per %>% 
+  group_by(animal, disturb) %>% 
+  summarise_all(funs(mean)) %>% dplyr::select(-c(TankNum,Round))
+
+summ_per_3 <- summ_per_3 %>% gather(key = "species", value = "percent", -c(animal,disturb))
+summ_per_3 <- summ_per_3 %>% filter(percent > 0.05, species != "total")
+
+summ_per_3_sd <- algal_day3_per %>% 
+  group_by(animal, disturb) %>% 
+  summarise_all(funs(sd)) %>% dplyr::select(-c(TankNum))
+summ_per_3_sd <- summ_per_3_sd %>% gather(key = "species", value = "sd", -c(animal,disturb))
+summ_per_3_sd <- summ_per_3_sd %>% filter(sd > 0.05, species != "total")
+summ_per_3 <- left_join(summ_per_3, summ_per_3_sd)
+
+(per3 <- ggplot(data = summ_per_3, aes(species,percent, color = animal, shape = disturb)) +
+    geom_pointrange(aes(ymin = percent-sd, ymax = percent+sd), 
+                    position=position_jitter(width=0.5)) + 
+    xlab("Species") +
+    ylab("Percent") + ggtitle("C. Final Conditions")+
+    theme(legend.box="vertical", legend.position = c(0.8,0.95),legend.direction = "horizontal",
+          legend.background = element_rect(fill = "transparent"))+
+    labs(shape="Disturbance", color = "Herbivore")+
+    theme(axis.line = element_line(colour = "black"), panel.border = element_blank()))
+  
+grid.arrange(per1, per2, per3)
 
 ###Remove All Rows That Has a Sum of 0 - need id dataframe and community dataframe
 algal_day1_id <- algal_day1 %>% 
@@ -174,7 +267,7 @@ graph_dat_end_sum <- graph_dat_end %>%
     theme(axis.line = element_line(colour = "black"), panel.border = element_blank())+
     theme(legend.position=c(0.9,0.9), legend.direction = "vertical",
           legend.background = element_rect(fill = "transparent"), legend.box="horizontal") +
-    labs(shape="Disturbance", color = "Grazer")+
+    labs(shape="Disturbance", color = "Herbivore")+
     guides(shape = guide_legend(order = 1)))
 
 grid.arrange(g1,g2,g3)

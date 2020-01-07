@@ -53,8 +53,15 @@ for (i in 1:nrow(dat)){
 }
 
 
+## double checking i didn't add nh4 proportionally or if it was proportional all treatments were close together before disturbance
 
 
+df <- dat %>% filter(disturb == "y")
+
+ 
+df <- df %>% group_by(animal, ExptDay) %>% summarize(avg = mean(NH4, na.rm = T), sd = sd(NH4, na.rm = T)) 
+
+ggplot(data = df[df$ExptDay < 22,], aes(ExptDay, avg, color = animal)) + geom_point() + geom_errorbar(aes(ymin= avg-sd, ymax = avg+sd)) 
 
 ```
 
@@ -99,10 +106,15 @@ end <- rbind(endday, endday1)
 
 mean_nh4 <- finday %>% filter(treatment == 1) %>% summarize(avg = mean(NH4))
 mean_chl <- finday %>% filter(treatment == 1) %>% summarize(avg = mean(Chl))
-ggplot(data = end, aes(as.factor(treatment), Chl)) + geom_boxplot()
-ggplot(data = end, aes(as.factor(treatment), Chl/mean_chl$avg)) + geom_boxplot()
 
-ggplot(data=finday, aes(as.factor(treatment), NH4/mean_nh4$avg)) + geom_boxplot()
+chl_final <- ggplot(data = end, aes(animal, adj_chl, color = disturb)) + geom_boxplot()+ ylab("Final Chlorophyll a (ug/L)") + 
+  xlab("Herbivore Treatment")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("A.") + scale_color_manual(values = c("black", "seashell4")) + labs(color = "Disturbance")
+
+nh4_final <- ggplot(data = finday, aes(animal, NH4, color = disturb)) + geom_boxplot()+ ylab("Final Nh4 concentration (mg/L)") + 
+  xlab("Herbivore Treatment")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("C.") + scale_color_manual(values = c("black", "seashell4")) + labs(color = "Disturbance")
+
+
+
 ```
 
 
@@ -262,7 +274,12 @@ chl_rollmean <- dat_dist %>% group_by(treatment) %>%
 
 max_chl <- chl_rollmean %>% group_by(TankNum) %>% 
   dplyr::select(TankNum,treatment,animal, disturb,mean_3) %>%
-  filter(mean_3 == max(mean_3, na.rm = T)) %>% filter(disturb == "y")
+  filter(mean_3 == max(mean_3, na.rm = T))
+
+max_chl_g <- ggplot(data = max_chl, aes(animal, mean_3, color = disturb)) + geom_boxplot()+ ylab("Maximum Chlorophyll a (ug/L)") + 
+  xlab("Herbivore Treatment")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("B.") + scale_color_manual(values = c("black", "seashell4")) + labs(color = "Disturbance")
+
+max_chl <- max_chl %>% filter(disturb == "y")
 
 max_chl$animal <- as.factor(max_chl$animal)
 ## Put the order of the factors in a more reasonable order
@@ -323,7 +340,7 @@ grdat3 <- data.frame(e1_amm)
 
 g2 <- ggplot(data = grdat3, aes(animal, emmean)) + geom_point(size = 3) + 
   geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Final NH4-N (mg/L)") + 
-  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("C.")
+  xlab("Herbivore Treatment")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("C.")
 
 ```
 
@@ -332,9 +349,13 @@ max Nh4 post disturbance
 ```{r ammonium max}
 
 nh_max1 <- dat_dist %>% group_by(TankNum) %>% mutate(max_nh4= max(NH4,na.rm = T))
+max_nh4_g <- ggplot(data = nh_max1, aes(animal, max_nh4, color = disturb)) + geom_boxplot()+ ylab("Maximum NH4 (mg/L)") + 
+  xlab("Herbivore Treatment")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("B.") + scale_color_manual(values = c("black", "seashell4")) + labs(color = "Disturbance")
+
 nh_max1$animal <- factor(nh_max1$animal, levels = c("none", "snail", "daphnia", "both"))
 
-nh4_max_mod <- lm(max_nh4 ~ -1+animal, data = nh_max1)
+nh4_max2 <- nh_max1 %>% filter(disturb == "y")
+nh4_max_mod <- lm(max_nh4 ~ -1+animal, data = nh4_max2)
 
 amm_max <- multcomp::glht(nh4_max_mod,inverse_cont)
 (smax <- summary(amm_max))
@@ -347,6 +368,8 @@ e1_max <-  emmeans(nh4_max_mod, ~animal)
 ## but not clear how to get CI on this.. have CI on differance (confint(amm_max)$confint)
 plot(e1_max)
 
+
+
 ```
 
 
@@ -355,7 +378,7 @@ grdat4 <- data.frame(e1_max)
 
 g3 <- ggplot(data = grdat4, aes(animal, emmean)) + geom_point(size = 3) + 
   geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Maximum NH4-N (mg/L)") + 
-  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("D.")
+  xlab("Herbivore Treatment")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("D.")
 
 
 grid.arrange(gg, g1,g2, g3, nrow =2)
@@ -401,7 +424,7 @@ grdat5 <- data.frame(e1_sed)
 
 g3 <- ggplot(data = grdat5, aes(animal, response)) + geom_point(size = 3) + 
   geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Sediment (mL)") + 
-  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank())
+  xlab("Herbivore Treatment")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank())
 
 ```
 
@@ -435,8 +458,8 @@ dd <- as.data.frame(emmeans(eggmod,~animal*disturb),type="response")
 dd$treat <- paste(dd$animal,dd$disturb)
 
 eggg <- ggplot(data = dd, aes(treat, prob)) + geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL, color= disturb), width = 0.3)+ ylab("Probablity Ephippium Present") + 
-  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + 
-    labs(color="Disturbance", shape = "Grazer") 
+  xlab("Herbivore Treatment")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + 
+    labs(color="Disturbance", shape = "Herbivore") 
 ```
 
 daphnia populations
@@ -529,7 +552,7 @@ popgd$treat <- paste(popgd$animal,popgd$disturb)
 
 popg <- ggplot(data = popgd, aes(treat,rate)) +  
    geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL, color= disturb), width = 0.3)+ ylab("Daphnia magna per 10mL") + 
-  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + ggtitle("A. Final Population")+ theme(legend.position = "none") 
+  xlab(" ")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + ggtitle("A. Final Population")+ theme(legend.position = "none") 
 
 ```
 
@@ -570,7 +593,7 @@ popmg$treat <- paste(popmg$animal,popmg$disturb)
 
 popg_max <- ggplot(data = popmg, aes(treat,response)) +  
    geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= lower.CL, ymax=upper.CL, color= disturb), width = 0.3)+ ylab("Daphnia magna per 10 mL ") + 
-  xlab("Grazer")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + ggtitle("B. Maximum population") + labs(color = "Disturbance", shape = "Grazer") + theme(legend.position = c(0.85,0.25), legend.box = "horizontal", legend.background = element_rect(fill = "transparent"))
+  xlab("Herbivore Treatment")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + ggtitle("B. Maximum population") + labs(color = "Disturbance", shape = "Herbivore") + theme(legend.position = c(0.85,0.25), legend.box = "horizontal", legend.background = element_rect(fill = "transparent"))
 
 grid.arrange(popg, popg_max, nrow = 2)
 
