@@ -5,13 +5,21 @@ library(coefplot)
 source("Graphing_Set_Up.R")
 
 snail <- read.csv("snail_survival.csv")
+size <- read.csv("snail_size.csv")
 
-snail <- snail %>% filter(!is.na(Snail))
+## check that counts match between two documents
+check <- left_join(snail,size)
+check <- check %>% 
+  dplyr::select(TankNum,ExptDay, Snail, Snail.Count) %>% 
+  filter(!is.na(Snail.Count))
+
+
 
 ## snail survival
+snail <- snail %>% filter(!is.na(Snail))
 
-
-ggplot(data = snail, aes(ExptDay, Snail)) + geom_point(aes(color=as.factor(TankNum))) + facet_wrap(~treatment)
+ggplot(data = snail, aes(ExptDay, Snail)) + geom_point(aes(color=as.factor(TankNum))) + 
+  facet_wrap(~treatment)
 
 
 snail <- snail %>% mutate(proportion = snail$Snail/4,total=4)
@@ -87,5 +95,47 @@ print(snail_pop)
   
 
 ##snail growth
+size1 <- size %>% gather(key = "individual", value = "size", -c(Date, TankNum,treatment, ExptDay, Snail.Count, egg.mass, babies))
+size2 <- size1[grep("\\[", size1$size, invert = T), ]
+size2$size <- as.numeric(as.character(size2$size))
+size3 <- size2 %>% 
+  group_by(TankNum,ExptDay,treatment) %>% 
+  filter(!is.na(size)) %>%
+  summarize(size = mean(size), size_sd = sd(size) )
 
+size4 <- size3 %>% filter(treatment %in% c(7,8,11,12))
+size4$treatment <- as.character(size4$treatment)
+size4$animal <- 0
+size4$disturb <- 0
+
+for (i in 1:nrow(size4)){
+  if (size4$treatment[i] == 7) {
+    size4$animal[i] <- "snail"
+    size4$disturb[i] <- "n" } else
+      if (size4$treatment[i] == 8) {
+        size4$animal[i] <- "snail"
+        size4$disturb[i] <- "y"
+      } else if (size4$treatment[i] == 11){
+        size4$animal[i] <- "daphnia"
+        size4$disturb[i] <- "n"
+      } else if (size4$treatment[i] == 12){
+        size4$animal[i] <- "daphnia"
+        size4$disturb[i] <- "y"
+      }
+}
+
+## something like this...Mike said since only 3 data points should have exptday not be continuous...
+##also should i incorporate variation somehow-
+## and deal with the fact that most tanks lost individuals
+size_mod <- lmer(data = size4, size~(animal+disturb)*ExptDay + (1|TankNum) )
+
+
+## eggmass presence
+## while I have counts not sure about accuracy because hard to see
+
+
+
+
+## juvenile count
+## so few tanks with individuals...
 
