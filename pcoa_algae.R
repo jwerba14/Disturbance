@@ -272,6 +272,10 @@ graph_dat_end_sum <- graph_dat_end %>%
 
 grid.arrange(g1,g2,g3)
 
+#run PERMANOVA
 
+
+adonis = adonis(algal[,-c(1:4)] ~ animal*disturb*Round, method = "bray",
+                data=algal, perm=1000)
 
 
