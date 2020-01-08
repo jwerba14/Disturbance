@@ -13,6 +13,8 @@ check <- check %>%
   dplyr::select(TankNum,ExptDay, Snail, Snail.Count) %>% 
   filter(!is.na(Snail.Count))
 
+p <- check[which(check$Snail != check$Snail.Count), ]
+
 
 
 ## snail survival
