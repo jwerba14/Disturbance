@@ -42,8 +42,8 @@ TankNum,treatment,ExptDay,Month,Day,Snail
 40,8,38,March,3,0
 40,8,40,March,5,0
 83,11,38,March,11,0
-83,11,39,March,12,0
-83,11,40,March,13,0
+83,11,39,March,12,1
+83,11,40,March,13,1
 85,8,30,March,3,0
 85,8,32,March,5,0
 85,8,33,March,6,0
@@ -155,7 +155,7 @@ TankNum,treatment,ExptDay,Month,Day,Snail
 34,7,36,March,1,1
 34,7,37,March,2,1
 37,12,38,March,3,1
-37,12,40,March,5,1
+37,12,40,March,5,2
 40,8,24,February,17,1
 40,8,26,February,19,1
 40,8,27,February,20,1
@@ -452,7 +452,7 @@ TankNum,treatment,ExptDay,Month,Day,Snail
 84,11,34,March,7,2
 84,11,35,March,8,2
 84,11,39,March,12,2
-84,11,40,March,13,2
+84,11,40,March,13,3
 85,8,13,February,14,2
 85,8,16,February,17,2
 85,8,17,February,18,2
@@ -476,7 +476,7 @@ TankNum,treatment,ExptDay,Month,Day,Snail
 102,8,35,March,8,2
 102,8,38,March,11,2
 102,8,39,March,12,2
-102,8,40,March,13,2
+102,8,40,March,13,1
 103,8,35,March,8,2
 103,8,38,March,11,2
 103,8,39,March,12,2
@@ -1485,7 +1485,7 @@ TankNum,treatment,ExptDay,Month,Day,Snail
 115,7,8,February,11,NA
 115,7,11,February,14,NA
 115,7,20,February,23,NA
-115,7,22,February,25,NA
+115,7,22,February,25,1
 115,7,23,February,26,NA
 115,7,25,February,28,NA
 115,7,29,March,4,NA

@@ -2,6 +2,7 @@ library(tidyverse)
 library(lme4)
 library(emmeans)
 library(coefplot)
+library(gridExtra)
 source("Graphing_Set_Up.R")
 
 snail <- read.csv("snail_survival.csv")
@@ -13,9 +14,11 @@ check <- check %>%
   dplyr::select(TankNum,ExptDay, Snail, Snail.Count) %>% 
   filter(!is.na(Snail.Count))
 
+p <- check[which(check$Snail != check$Snail.Count), ]
 
 
-## snail survival
+
+## snail survival of original cohert
 snail <- snail %>% filter(!is.na(Snail))
 
 ggplot(data = snail, aes(ExptDay, Snail)) + geom_point(aes(color=as.factor(TankNum))) + 
@@ -25,6 +28,8 @@ ggplot(data = snail, aes(ExptDay, Snail)) + geom_point(aes(color=as.factor(TankN
 snail <- snail %>% mutate(proportion = snail$Snail/4,total=4)
 ## for first pass convert any that were greater than 4 to 4
 
+## want to remove babies from count for this analysis-- 
+##where babies were entered here all 4 original survived
 for(i in 1:nrow(snail)){
   if (snail$proportion[i] > 1) {
     snail$proportion[i] <- 1
@@ -95,34 +100,40 @@ print(snail_pop)
   
 
 ##snail growth
+## going through the data I just don't think it is consistent enough to include
 size1 <- size %>% gather(key = "individual", value = "size", -c(Date, TankNum,treatment, ExptDay, Snail.Count, egg.mass, babies))
 size2 <- size1[grep("\\[", size1$size, invert = T), ]
 size2$size <- as.numeric(as.character(size2$size))
+size2 <- size2 %>% filter(treatment %in% c(7,8,11,12))
+size2$treatment <- as.character(size2$treatment)
+size2$animal <- 0
+size2$disturb <- 0
+
+for (i in 1:nrow(size2)){
+  if (size2$treatment[i] == 7) {
+    size2$animal[i] <- "snail"
+    size2$disturb[i] <- "n" } else
+      if (size2$treatment[i] == 8) {
+        size2$animal[i] <- "snail"
+        size2$disturb[i] <- "y"
+      } else if (size2$treatment[i] == 11){
+        size2$animal[i] <- "daphnia"
+        size2$disturb[i] <- "n"
+      } else if (size2$treatment[i] == 12){
+        size2$animal[i] <- "daphnia"
+        size2$disturb[i] <- "y"
+      }
+}
+
+
+
 size3 <- size2 %>% 
-  group_by(TankNum,ExptDay,treatment) %>% 
+  group_by(TankNum,ExptDay,treatment, animal, disturb) %>% 
   filter(!is.na(size)) %>%
   summarize(size = mean(size), size_sd = sd(size) )
 
-size4 <- size3 %>% filter(treatment %in% c(7,8,11,12))
-size4$treatment <- as.character(size4$treatment)
-size4$animal <- 0
-size4$disturb <- 0
 
-for (i in 1:nrow(size4)){
-  if (size4$treatment[i] == 7) {
-    size4$animal[i] <- "snail"
-    size4$disturb[i] <- "n" } else
-      if (size4$treatment[i] == 8) {
-        size4$animal[i] <- "snail"
-        size4$disturb[i] <- "y"
-      } else if (size4$treatment[i] == 11){
-        size4$animal[i] <- "daphnia"
-        size4$disturb[i] <- "n"
-      } else if (size4$treatment[i] == 12){
-        size4$animal[i] <- "daphnia"
-        size4$disturb[i] <- "y"
-      }
-}
+
 
 ## something like this...Mike said since only 3 data points should have exptday not be continuous...
 ##also should i incorporate variation somehow-
@@ -131,11 +142,75 @@ size_mod <- lmer(data = size4, size~(animal+disturb)*ExptDay + (1|TankNum) )
 
 
 ## eggmass presence
-## while I have counts not sure about accuracy because hard to see
+## while I have counts not sure about accuracy because hard to see so going to do presence/absence
+## need to check all data sheets again and make sure nothing was overlooked/ all entered
+eggm <- size2 %>% group_by(TankNum) %>% filter(ExptDay == max(ExptDay))
+eggm <- eggm %>% mutate_each(funs(replace(., is.na(.), FALSE)),egg.mass,babies)
+eggm$egg.mass.p <- as.numeric(0)
+for (i in 1:nrow(eggm)) {
+  if (eggm$egg.mass[i] == 0) {
+    eggm$egg.mass.p[i] <- 0
+  } else if (eggm$egg.mass[i] > 0) {
+    eggm$egg.mass.p[i] <- 1
+  }
+}
+
+eggmod <- glm(egg.mass.p ~ animal*disturb, family = binomial(link = logit), data = eggm)
+
+
+eggmod_cs <- update(eggmod, contrasts=list(animal=contr.sum,disturb=contr.sum))
+
+
+dd <- as.data.frame(emmeans(eggmod,~animal*disturb),type="response")
+
+dd$treat <- paste(dd$animal,dd$disturb)
+
+snail_eggg <- ggplot(data = dd, aes(treat, prob)) + geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL, color= disturb), width = 0.3)+ 
+  ylab("Probablity Snail Eggmass Present") + 
+  xlab(" ")+
+  theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + 
+  labs(color="Disturbance", shape = "Herbivore") + ggtitle("A.")
 
 
 
+print(snail_eggg)
 
 ## juvenile count
-## so few tanks with individuals...
+## so few tanks with individuals
+
+juv <- glm(babies~animal*disturb, family = poisson, data = eggm)
+juv_cs <- update(juv, contrasts=list(animal=contr.sum,disturb=contr.sum))
+#under/over dispersion of our error distribution by looking at the ratio of Pearson's residuals and the residual degrees of freedom \citep{bolker2008ecological}
+overdisp_fun <- function(model) {
+  rdf <- df.residual(model)
+  rp <- residuals(model,type="pearson")
+  Pearson.chisq <- sum(rp^2)
+  prat <- Pearson.chisq/rdf
+  pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE)
+  c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
+}
+
+overdisp_fun(juv)
+
+dj <- as.data.frame(emmeans(juv,~animal*disturb),type="response")
+
+dj$treat <- paste(dj$animal,dj$disturb)
+
+snail_juv <- ggplot(data = dj, aes(treat, rate)) + geom_point(aes(color = disturb, shape = animal), size = 3) + 
+  geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL, color= disturb), width = 0.3)+ 
+  ylab("Juveniles") + 
+  xlab("Herbivore Treatment")+
+  theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + 
+  labs(color="Disturbance", shape = "Herbivore") + ggtitle("B.")
+
+
+
+print(snail_juv)
+
+grid.arrange(snail_eggg, snail_juv)
+
+
+
+
+
 
