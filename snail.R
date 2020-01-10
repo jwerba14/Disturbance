@@ -18,6 +18,7 @@ p <- check[which(check$Snail != check$Snail.Count), ]
 
 
 
+
 ## snail survival of original cohert
 snail <- snail %>% filter(!is.na(Snail))
 
