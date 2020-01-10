@@ -275,7 +275,7 @@ grid.arrange(g1,g2,g3)
 #run PERMANOVA
 
 
-adonis = adonis(algal[,-c(1:4)] ~ animal*disturb*Round, method = "bray",
-                data=algal, perm=1000)
+ad <- adonis(algal[,-c(1:4)] ~ animal+disturb+Round, method = "bray",
+                data=algal, perm=1000,parallel = getOption("mc.cores"))
 
-
+saveRDS(ad, file = "permanova.RDS")

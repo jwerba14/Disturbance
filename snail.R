@@ -133,7 +133,7 @@ size3 <- size2 %>%
   summarize(size = mean(size), size_sd = sd(size) )
 
 
-
+size_start <- size3 %>% ungroup()%>% filter(ExptDay == 1) %>% summarize(mean=mean(size), sd=sd(size))
 
 ## something like this...Mike said since only 3 data points should have exptday not be continuous...
 ##also should i incorporate variation somehow-
