@@ -515,7 +515,7 @@ pop_fin$treat <- paste(pop_fin$animal,pop_fin$disturb)
 pop_fin$treat <- factor(pop_fin$treat, levels = c("daphnia n", "both n", "daphnia y", "both y"))
 inverse_contp <- matrix(nrow = 3, ncol = 4
   , data = c(
-    1  ,   0,      -1,    0   ##  daphnia n vs daphnia y
+    1  ,   0,     -1,    0   ## daphnia n vs daphnia y
   , 0  ,   1,     0,    -1    ## both n vs both y
   , 0  ,   1,    -1,    0     ## both y vs daphnia y
   )
@@ -531,7 +531,7 @@ dimnames(inverse_contp) <- list(
 
 
 
-daph_fin_mod <- glmer(total ~ treat + (1|TankNum),data = pop_fin, family = "poisson" )
+daph_fin_mod <- glmer(total ~ -1 + treat + (1|TankNum),data = pop_fin, family = "poisson" )
 plot(resid(daph_fin_mod))
 qqnorm(resid(daph_fin_mod))
 
