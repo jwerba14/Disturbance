@@ -53,7 +53,6 @@ for (i in 1:nrow(dat)){
 }
 
 
-## double checking i didn't add nh4 proportionally or if it was proportional all treatments were close together before disturbance
 
 
 df <- dat %>% filter(disturb == "y")
@@ -67,6 +66,61 @@ ggplot(data = df[df$ExptDay < 22,], aes(ExptDay, avg, color = animal)) + geom_po
 
 
 
+```{r, dates}
+
+## need dummy date variable for tq_mutate to work.... and for random effect of experimental block
+
+Date <- paste(dat$Month, dat$Day,dat$Year, sep = "-")
+
+
+betterDates <- as.Date(Date,
+  format = "%B-%d-%Y")
+
+dates <- data.frame(Dates1 = Date,
+                    Dates2 = betterDates)
+
+p <- dates %>% filter(is.na(Dates2))
+which(is.na(dates$Dates2))
+dates[c(390,400,409,418,421,440),2] <- "2019-03-02"
+dates[419,2] <- "2019-01-31"
+dates[498,2] <- "2019-02-03"
+dates[(which(is.na(dates$Dates2))), 2] <- "2019-03-01"
+
+dat$Date <- dates$Dates2
+
+## add blocking variable
+block <- dat %>% filter(ExptDay == 1) %>% dplyr::select(Date, ExptDay, TankNum)
+block$block <- NA
+for (i in 1:nrow(block)){
+  if (block$Date[i] == "2019-01-21" ) {
+    block$block[i] <- "A"
+  } else if (block$Date[i] == "2019-02-21" ) {
+     block$block[i] <- "B"
+  } else if (block$Date[i] == "2019-01-22" ) {
+     block$block[i] <- "C"
+  } else if (block$Date[i] == "2019-01-25" ) {
+     block$block[i] <- "D"
+  } else if (block$Date[i] == "2019-03-02" ) {
+     block$block[i] <- "E"
+  } else if (block$Date[i] == "2019-01-28" ) {
+     block$block[i] <- "F"  
+  } else if (block$Date[i] == "2019-01-30" ) {
+     block$block[i] <- "G"  
+  } else if (block$Date[i] == "2019-03-01" ) {
+     block$block[i] <- "H"   
+  } else if (block$Date[i] == "2019-02-02" ) {
+     block$block[i] <- "I" 
+  } else if (block$Date[i] == "2019-02-04" ) {
+     block$block[i] <- "J"  
+  } else if (block$Date[i] == "2019-02-05" ) {
+     block$block[i] <- "K"   
+  } 
+}
+
+block <- block %>% dplyr::select(TankNum, block)
+dat <- left_join(dat,block, by = "TankNum")
+
+```
 
 Subset final time point for Nh4 and final 4 days for Chl
 ```{r final time point}
@@ -163,9 +217,10 @@ dimnames(inverse_cont) <- list(
 ```
 
 
+
+
 ```{r chl final model}
 dat1 <- dat1 %>% filter(!is.na(adj_chl))
-
 
 
 ## no adjustment for negative values
@@ -173,7 +228,7 @@ finmod0 <- lm(log10(adj_chl) ~ -1 + animal, data = dat1)
 finmodsq <- lm(sqrt(adj_chl) ~ -1 + animal, data = dat1)
 
 #drop negative values
-finmod00 <- lm(log10(adj_chl) ~ -1 + animal, data = dat1[dat1$adj_chl > 0, ])
+finmod00 <- lmer(log10(adj_chl) ~ -1 + animal + (1|block), data = dat1[dat1$adj_chl > 0, ])
 finmod00sq <- lm(sqrt(adj_chl) ~ -1 + animal, data = dat1[dat1$adj_chl > 0, ])
 
 # set threshhold
@@ -231,27 +286,6 @@ Max Chl -
 
 ```{r max chl}
 
-## need dummy date variable for tq_mutate to work....
-
-
-
-Date <- paste(dat$Month, dat$Day,dat$Year, sep = "-")
-
-
-betterDates <- as.Date(Date,
-  format = "%B-%d-%Y")
-
-dates <- data.frame(Dates1 = Date,
-                    Dates2 = betterDates)
-
-p <- dates %>% filter(is.na(Dates2))
-which(is.na(dates$Dates2))
-dates[c(390,400,409,418,421,440),2] <- "2019-03-02"
-dates[419,2] <- "2019-01-31"
-dates[498,2] <- "2019-02-03"
-dates[(which(is.na(dates$Dates2))), 2] <- "2019-03-01"
-
-dat$Date <- dates$Dates2
 
 dat <- dat %>% filter(!is.na(adj_chl))
 dat_dist <- dat %>% filter(ExptDay >= ExptDay[which(dat$Disturbed=="y")]) ## only days after disturbance
@@ -269,11 +303,12 @@ chl_rollmean <- dat_dist %>% group_by(treatment) %>%
         na.rm  = TRUE,
         # tq_mutate args
         col_rename = "mean_3"
-    ) 
+    )   %>%
+ ungroup()
 
 
 max_chl <- chl_rollmean %>% group_by(TankNum) %>% 
-  dplyr::select(TankNum,treatment,animal, disturb,mean_3) %>%
+  dplyr::select(TankNum,treatment,animal, disturb,mean_3, block) %>%
   filter(mean_3 == max(mean_3, na.rm = T))
 
 max_chl_g <- ggplot(data = max_chl, aes(animal, mean_3, color = disturb)) + geom_boxplot()+ ylab("Maximum Chlorophyll a (ug/L)") + 
@@ -285,7 +320,7 @@ max_chl$animal <- as.factor(max_chl$animal)
 ## Put the order of the factors in a more reasonable order
 max_chl$animal <- factor(max_chl$animal, levels = c("none", "snail", "daphnia", "both"))
 
-maxmod <- lm(log10(mean_3) ~ animal, data = max_chl)
+maxmod <- lmer(log10(mean_3) ~ -1+animal + (1|block), data = max_chl)
 
 plot(resid(maxmod)) ##hmm definitely seems like a pattern but there aren't that many points
 plot.new()
@@ -321,7 +356,7 @@ NH4 resilience, final time point
 ```{r ammonium final}
 finday1 <- finday %>% filter(disturb == "y")
 finday1$animal <- factor(finday1$animal,levels = c("none", "snail", "daphnia", "both")) 
-amm_end <- lm(data = finday1, NH4 ~ -1+ animal)
+amm_end <- lmer(data = finday1, NH4 ~ -1+ animal + (1|block))
 
 
 amm1 <- multcomp::glht(amm_end,inverse_cont)
@@ -348,14 +383,14 @@ g2 <- ggplot(data = grdat3, aes(animal, emmean)) + geom_point(size = 3) +
 max Nh4 post disturbance
 ```{r ammonium max}
 
-nh_max1 <- dat_dist %>% group_by(TankNum) %>% mutate(max_nh4= max(NH4,na.rm = T))
+nh_max1 <- dat_dist %>% group_by(TankNum) %>% mutate(max_nh4= max(NH4,na.rm = T))%>% ungroup()
 max_nh4_g <- ggplot(data = nh_max1, aes(animal, max_nh4, color = disturb)) + geom_boxplot()+ ylab("Maximum NH4 (mg/L)") + 
   xlab("Herbivore Treatment")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("B.") + scale_color_manual(values = c("black", "seashell4")) + labs(color = "Disturbance")
 
 nh_max1$animal <- factor(nh_max1$animal, levels = c("none", "snail", "daphnia", "both"))
 
 nh4_max2 <- nh_max1 %>% filter(disturb == "y")
-nh4_max_mod <- lm(max_nh4 ~ -1+animal, data = nh4_max2)
+nh4_max_mod <- lmer(max_nh4 ~ -1+animal + (1|block), data = nh4_max2)
 
 amm_max <- multcomp::glht(nh4_max_mod,inverse_cont)
 (smax <- summary(amm_max))
@@ -391,6 +426,7 @@ grid.arrange(gg, g1,g2, g3, nrow =2)
 sed <- read.csv("sediment.csv")
 newdat1 <- newdat %>%filter(ExptDay == 1)%>% dplyr::select(TankNum, treatment)
 sed1 <- left_join(newdat1, sed)
+sed1 <- left_join(sed1,block, by= "TankNum")
 sed2 <- sed1 %>% filter(! treatment %in% c(5,6,9,10,13,14))
 dat2 <- dat %>% filter(ExptDay==1)%>%dplyr::select(treatment, disturb, animal, TankNum)
 sed3 <- left_join(dat2,sed2)
@@ -402,7 +438,7 @@ ggplot(data = sed3, aes(as.factor(treatment), sediment)) + geom_boxplot()
 
 ```{r sediment model}
 
-sedmod <- lm(log10(sediment) ~ -1+ animal,data = sed3, subset=(disturb=="y") ) ## hmm do all my models need random effect of tank??-- i only have 2 measurement per tank...so that doesn't seem doable but should i do something? 
+sedmod <- lmer(log10(sediment) ~ -1+ animal + (1|block),data = sed3, subset=(disturb=="y") ) ## hmm do all my models need random effect of tank??-- i only have 2 measurement per tank...so that doesn't seem doable but should i do something? 
 
 plot(resid(sedmod))
 qqnorm(resid(sedmod)) ## yeah not good
@@ -434,6 +470,7 @@ egg casing
 egg <- read.csv("egg_case.csv")
 names(egg) <- c("TankNum","eggs")
 egg1 <- left_join(newdat1, egg)
+egg1 <- left_join(egg1,block, by= "TankNum")
 egg2 <- egg1 %>% filter(! treatment %in% c(5,6,9,10,13,14))
 egg3 <- left_join(dat2,egg2)
 egg3$animal <- factor(egg3$animal,levels = c("none", "snail", "daphnia", "both"))
@@ -441,7 +478,7 @@ egg4 <- egg3 %>% filter(animal %in% c("both","daphnia"))
 ```
 
 ```{r egg case model}
-eggmod <- glm(eggs~animal*disturb, family = binomial(link= logit), data = egg4)
+eggmod <- glmer(eggs~-1+animal*disturb + (1|block), family = binomial(link= logit), data = egg4)
 ## estimate main effects at midpoint by using sum-to-zero contrasts
 ## (probably better)
 eggmod_cs <- update(eggmod, contrasts=list(animal=contr.sum,disturb=contr.sum))
@@ -498,6 +535,7 @@ popB <- popA %>% separate(subsample, into=c("daphnia","subsample","stage"),sep =
 
 popB <- popB %>% group_by(TankNum, Exptday, subsample, animal, disturb) %>% 
   summarize(total = sum(count))
+popB <- left_join(popB, block, by= "TankNum")
 
 ```
 
@@ -531,7 +569,7 @@ dimnames(inverse_contp) <- list(
 
 
 
-daph_fin_mod <- glmer(total ~ -1 + treat + (1|TankNum),data = pop_fin, family = "poisson" )
+daph_fin_mod <- glmer(total ~ -1 + treat + (1|TankNum) + (1|block),data = pop_fin, family = "poisson" ) ## do i need to add th e block I think so....
 plot(resid(daph_fin_mod))
 qqnorm(resid(daph_fin_mod))
 
