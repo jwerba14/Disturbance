@@ -7,6 +7,7 @@ library(vegan)
 library(gridExtra)
 library(ggplot2)
 
+## only select treatments without ceriodaphnia
 dat <- newdat %>% filter(! treatment %in% c(5,6,9,10,13,14))
 
 dat$disturb <- "X"
@@ -33,8 +34,8 @@ for (i in 1:nrow(dat)){
 }
 
 ## add treatment column to algae
-treat <- dat %>% dplyr::select(animal,disturb, TankNum)
-algal <- left_join(treat, algae_all)
+treat <- dat %>%filter(ExptDay ==1) %>% dplyr::select(animal,disturb, TankNum)
+algal <- left_join(treat, algae_all)  ## drops tanks that had cerio bc matches with treat
 
 
 ###Make Three Data Frames For Rounds 1, 2, and 3
@@ -187,14 +188,14 @@ day2_pcoa <- cmdscale(algal2_dist, k=3, eig = TRUE, add = FALSE)
 day3_pcoa <- cmdscale(algal3_dist, k=3, eig = TRUE, add = FALSE)
 
 ###calculate Expected Variation From The First 2 Axes
-(expvar1_day1 <- round(day1_pcoa$eig[1] / sum(day1_pcoa$eig), 3) * 100) # 63.5
-(expvar2_day1 <- round(day1_pcoa$eig[2] / sum(day1_pcoa$eig), 3) * 100) # 17.7
+(expvar1_day1 <- round(day1_pcoa$eig[1] / sum(day1_pcoa$eig), 3) * 100) # 62.4
+(expvar2_day1 <- round(day1_pcoa$eig[2] / sum(day1_pcoa$eig), 3) * 100) # 18.2
 
-(expvar1_day2 <- round(day2_pcoa$eig[1] / sum(day2_pcoa$eig), 3) * 100) # 45.5
-(expvar2_day2 <- round(day2_pcoa$eig[2] / sum(day2_pcoa$eig), 3) * 100) # 17.3
+(expvar1_day2 <- round(day2_pcoa$eig[1] / sum(day2_pcoa$eig), 3) * 100) # 45.3
+(expvar2_day2 <- round(day2_pcoa$eig[2] / sum(day2_pcoa$eig), 3) * 100) # 17.4
 
-(expvar1_day3 <- round(day3_pcoa$eig[1] / sum(day3_pcoa$eig), 3) * 100) # 37.7
-(expvar2_day3 <- round(day3_pcoa$eig[2] / sum(day3_pcoa$eig), 3) * 100) #19.6
+(expvar1_day3 <- round(day3_pcoa$eig[1] / sum(day3_pcoa$eig), 3) * 100) # 37.9
+(expvar2_day3 <- round(day3_pcoa$eig[2] / sum(day3_pcoa$eig), 3) * 100) #19.2
 
 
 
@@ -243,7 +244,7 @@ graph_dat_end_sum <- graph_dat_end %>%
 (g1 <- ggplot(data = graph_dat_start_sum, aes(Axis1,Axis2)) + 
     geom_point(aes(color = animal, shape = disturb), size = 5) +
     geom_errorbar(aes(ymax= Axis2+sd2, ymin= Axis2-sd2)) + 
-    geom_errorbarh(aes(xmax=Axis1+sd1, xmin=Axis1-sd1)) + xlab("Axis 1 (63%)") +
+    geom_errorbarh(aes(xmax=Axis1+sd1, xmin=Axis1-sd1)) + xlab("Axis 1 (62%)") +
     ylab("Axis 2 (18%)") + ggtitle("A. Starting Conditions")+
     theme(legend.position = "none")+ scale_x_continuous(limits = c(-.75, 0.75))+
     theme(axis.line = element_line(colour = "black"), panel.border = element_blank()))
@@ -263,7 +264,7 @@ graph_dat_end_sum <- graph_dat_end %>%
     geom_point(aes(color = animal, shape = disturb), size = 5)  +
     geom_errorbar(aes(ymax= Axis2+sd2, ymin= Axis2-sd2)) + 
     geom_errorbarh(aes(xmax=Axis1+sd1, xmin=Axis1-sd1)) + xlab("Axis 1 (38%)") +
-    ylab("Axis 2 (17%)") + ggtitle("C. Final Day") + scale_x_continuous(limits = c(-.75, 0.75))+
+    ylab("Axis 2 (19%)") + ggtitle("C. Final Day") + scale_x_continuous(limits = c(-.75, 0.75))+
     theme(axis.line = element_line(colour = "black"), panel.border = element_blank())+
     theme(legend.position=c(0.9,0.9), legend.direction = "vertical",
           legend.background = element_rect(fill = "transparent"), legend.box="horizontal") +
@@ -274,14 +275,16 @@ grid.arrange(g1,g2,g3)
 
 #run PERMANOVA
 
-## the permanova takes a long time to run so out put is saved for future interest
+
 ad <- adonis2(algal[,-c(1:4)] ~ animal+disturb+Round, method = "bray",
                 data=algal, perm=1000,by="margin",parallel = getOption("mc.cores"))
 
 
-#saveRDS(ad, file = "permanova.RDS")
+##saveRDS(ad, file = "permanova.RDS")
 
-out <- readRDS("permanova.RDS")
+##out <- readRDS("permanova.RDS")
 
-print(out$aov.tab)
+##overall significance of terms together
+ad_over <- adonis2(algal[,-c(1:4)] ~ animal+disturb+Round, method = "bray",
+                   data=algal, perm=1000,by=NULL,parallel = getOption("mc.cores"))
 

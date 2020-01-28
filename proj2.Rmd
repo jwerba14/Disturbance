@@ -232,8 +232,8 @@ finmod00 <- lmer(log10(adj_chl) ~ -1 + animal + (1|block), data = dat1[dat1$adj_
 finmod00sq <- lm(sqrt(adj_chl) ~ -1 + animal, data = dat1[dat1$adj_chl > 0, ])
 
 # set threshhold
-dat1[dat1$adj_chl < 0.001,] <- 0.1
-finmodth <- lm(log10(adj_chl) ~ -1 + animal, data = dat1)
+#dat1[dat1$adj_chl < 0.001,] <- 0.1
+#finmodth <- lm(log10(adj_chl) ~ -1 + animal, data = dat1)
 
 ## two options look identical
 
@@ -243,8 +243,10 @@ m1 <- multcomp::glht(finmod00,inverse_cont)
 perc_diff <- function(a) {
   ((10^a)-1)*100
 }
-perc_diff(confint(m1)$confint)
 
+
+perc_diff(confint(m1)$confint)
+(confint(m1)$confint)
 (s <- summary(m1))
 plot(m1)
 ## broom::tidy(m1) ##  sucks, unfortunately
@@ -329,6 +331,9 @@ qqline(resid(maxmod),col=2) ## also left skewed but not terrible?
 hist(resid(maxmod),col="gray")
 mm <- multcomp::glht(maxmod,inverse_cont)
 (ss <- summary(mm))
+(confint(mm)$confint)
+
+
 plot(mm)
 
 perc_diff(confint(mm)$confint)
@@ -356,15 +361,16 @@ NH4 resilience, final time point
 ```{r ammonium final}
 finday1 <- finday %>% filter(disturb == "y")
 finday1$animal <- factor(finday1$animal,levels = c("none", "snail", "daphnia", "both")) 
-amm_end <- lmer(data = finday1, NH4 ~ -1+ animal + (1|block))
-
+amm_end <- lmer(data = finday1, log10(NH4) ~ -1+ animal + (1|block))
+plot(resid(amm_end))
+qqnorm(resid(amm_end))
 
 amm1 <- multcomp::glht(amm_end,inverse_cont)
 (samm <- summary(amm1))
 plot(amm1)
-e1_amm <-  emmeans(amm_end, ~animal)
+e1_amm <-  emmeans(amm_end, ~animal,type = "response" )
 
-
+perc_diff(confint(amm1)$confint)
 
 plot(e1_amm)
 
@@ -373,7 +379,7 @@ plot(e1_amm)
 ```{r plot final ammonium}
 grdat3 <- data.frame(e1_amm)
 
-g2 <- ggplot(data = grdat3, aes(animal, emmean)) + geom_point(size = 3) + 
+g2 <- ggplot(data = grdat3, aes(animal, response)) + geom_point(size = 3) + 
   geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Final NH4-N (mg/L)") + 
   xlab("Herbivore Treatment")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("C.")
 
@@ -390,17 +396,21 @@ max_nh4_g <- ggplot(data = nh_max1, aes(animal, max_nh4, color = disturb)) + geo
 nh_max1$animal <- factor(nh_max1$animal, levels = c("none", "snail", "daphnia", "both"))
 
 nh4_max2 <- nh_max1 %>% filter(disturb == "y")
-nh4_max_mod <- lmer(max_nh4 ~ -1+animal + (1|block), data = nh4_max2)
+nh4_max_mod <- lmer(log10(max_nh4) ~ -1+animal + (1|block), data = nh4_max2)
+
+plot(resid(nh4_max_mod))
+qqnorm(resid(nh4_max_mod)) #hmm
+
+
+
 
 amm_max <- multcomp::glht(nh4_max_mod,inverse_cont)
 (smax <- summary(amm_max))
+perc_diff(confint(amm_max)$confint)
 plot(amm_max)
-e1_max <-  emmeans(nh4_max_mod, ~animal)
+e1_max <-  emmeans(nh4_max_mod, ~animal, type = "response")
 
-## percent difference
-## wasn't sure how to do this efficiently took estimates from main model 
-## treatment diff/ mean(treatments)
-## but not clear how to get CI on this.. have CI on differance (confint(amm_max)$confint)
+
 plot(e1_max)
 
 
@@ -411,7 +421,7 @@ plot(e1_max)
 ```{r plot max nh4}
 grdat4 <- data.frame(e1_max)
 
-g3 <- ggplot(data = grdat4, aes(animal, emmean)) + geom_point(size = 3) + 
+g3 <- ggplot(data = grdat4, aes(animal, response)) + geom_point(size = 3) + 
   geom_errorbar(aes(ymin=lower.CL, ymax = upper.CL), width = 0.3) + ylab("Maximum NH4-N (mg/L)") + 
   xlab("Herbivore Treatment")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("D.")
 
@@ -441,7 +451,7 @@ ggplot(data = sed3, aes(as.factor(treatment), sediment)) + geom_boxplot()
 sedmod <- lmer(log10(sediment) ~ -1+ animal + (1|block),data = sed3, subset=(disturb=="y") ) ## hmm do all my models need random effect of tank??-- i only have 2 measurement per tank...so that doesn't seem doable but should i do something? 
 
 plot(resid(sedmod))
-qqnorm(resid(sedmod)) ## yeah not good
+qqnorm(resid(sedmod)) 
 qqline(resid(sedmod),col=2) 
 hist(resid(sedmod),col="gray")
 
