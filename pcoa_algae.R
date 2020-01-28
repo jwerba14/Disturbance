@@ -275,8 +275,8 @@ grid.arrange(g1,g2,g3)
 #run PERMANOVA
 
 ## the permanova takes a long time to run so out put is saved for future interest
-ad <- adonis(algal[,-c(1:4)] ~ animal+disturb+Round, method = "bray",
-                data=algal, perm=1000,parallel = getOption("mc.cores"))
+ad <- adonis2(algal[,-c(1:4)] ~ animal+disturb+Round, method = "bray",
+                data=algal, perm=1000,by="margin",parallel = getOption("mc.cores"))
 
 
 #saveRDS(ad, file = "permanova.RDS")
