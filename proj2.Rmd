@@ -18,6 +18,7 @@ library(emmeans)
 library(multcomp)
 library(lmerTest)
 library(gridExtra)
+library(sjstats)
 ```
 
 
@@ -245,6 +246,7 @@ perc_diff <- function(a) {
 }
 
 
+performance::r2(finmod00)
 perc_diff(confint(m1)$confint)
 (confint(m1)$confint)
 (s <- summary(m1))
@@ -324,6 +326,7 @@ max_chl$animal <- factor(max_chl$animal, levels = c("none", "snail", "daphnia", 
 
 maxmod <- lmer(log10(mean_3) ~ -1+animal + (1|block), data = max_chl)
 
+performance::r2(maxmod)
 plot(resid(maxmod)) ##hmm definitely seems like a pattern but there aren't that many points
 plot.new()
 qqnorm(resid(maxmod))
@@ -364,6 +367,7 @@ finday1$animal <- factor(finday1$animal,levels = c("none", "snail", "daphnia", "
 amm_end <- lmer(data = finday1, log10(NH4) ~ -1+ animal + (1|block))
 plot(resid(amm_end))
 qqnorm(resid(amm_end))
+performance::r2(amm_end)
 
 amm1 <- multcomp::glht(amm_end,inverse_cont)
 (samm <- summary(amm1))
@@ -397,6 +401,8 @@ nh_max1$animal <- factor(nh_max1$animal, levels = c("none", "snail", "daphnia", 
 
 nh4_max2 <- nh_max1 %>% filter(disturb == "y")
 nh4_max_mod <- lmer(log10(max_nh4) ~ -1+animal + (1|block), data = nh4_max2)
+
+performance::r2(nh4_max_mod)
 
 plot(resid(nh4_max_mod))
 qqnorm(resid(nh4_max_mod)) #hmm
@@ -450,6 +456,8 @@ ggplot(data = sed3, aes(as.factor(treatment), sediment)) + geom_boxplot()
 
 sedmod <- lmer(log10(sediment) ~ -1+ animal + (1|block),data = sed3, subset=(disturb=="y") ) ## hmm do all my models need random effect of tank??-- i only have 2 measurement per tank...so that doesn't seem doable but should i do something? 
 
+
+
 plot(resid(sedmod))
 qqnorm(resid(sedmod)) 
 qqline(resid(sedmod),col=2) 
@@ -492,6 +500,22 @@ eggmod <- glmer(eggs~-1+animal*disturb + (1|block), family = binomial(link= logi
 ## estimate main effects at midpoint by using sum-to-zero contrasts
 ## (probably better)
 eggmod_cs <- update(eggmod, contrasts=list(animal=contr.sum,disturb=contr.sum))
+
+## check for overdispersion based on https://bbolker.github.io/mixedmodels-misc/glmmFAQ.html
+overdisp_fun <- function(model) {
+    rdf <- df.residual(model)
+    rp <- residuals(model,type="pearson")
+    Pearson.chisq <- sum(rp^2)
+    prat <- Pearson.chisq/rdf
+    pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE)
+    c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
+}
+
+overdisp_fun(eggmod)  ## very underdispersed
+egg4$eggs <- as.numeric(egg4$eggs)
+
+eggmod2 <- glmer.nb(eggs~-1+animal*disturb + (1|block), family = quasibinomial(link = "logit"), data = egg4) ## should be beta-binomial??
+
 ```
 
 
