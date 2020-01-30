@@ -490,7 +490,7 @@ names(egg) <- c("TankNum","eggs")
 egg1 <- left_join(newdat1, egg)
 egg1 <- left_join(egg1,block, by= "TankNum")
 egg2 <- egg1 %>% filter(! treatment %in% c(5,6,9,10,13,14))
-egg3 <- left_join(dat2,egg2)
+egg3 <- left_join(egg2,dat2)
 egg3$animal <- factor(egg3$animal,levels = c("none", "snail", "daphnia", "both"))
 egg4 <- egg3 %>% filter(animal %in% c("both","daphnia"))
 ```
@@ -501,20 +501,10 @@ eggmod <- glmer(eggs~-1+animal*disturb + (1|block), family = binomial(link= logi
 ## (probably better)
 eggmod_cs <- update(eggmod, contrasts=list(animal=contr.sum,disturb=contr.sum))
 
-## check for overdispersion based on https://bbolker.github.io/mixedmodels-misc/glmmFAQ.html
-overdisp_fun <- function(model) {
-    rdf <- df.residual(model)
-    rp <- residuals(model,type="pearson")
-    Pearson.chisq <- sum(rp^2)
-    prat <- Pearson.chisq/rdf
-    pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE)
-    c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
-}
+## this is bernoulli y/n outcome so don't need to check for dispersion ?
 
-overdisp_fun(eggmod)  ## very underdispersed
-egg4$eggs <- as.numeric(egg4$eggs)
 
-eggmod2 <- glmer.nb(eggs~-1+animal*disturb + (1|block), family = quasibinomial(link = "logit"), data = egg4) ## should be beta-binomial??
+
 
 ```
 
@@ -577,6 +567,7 @@ Final Population
 ```{r daphnia final pop}
 pop_fin <- popB %>% group_by(TankNum) %>% filter(Exptday == max(Exptday))
 
+
 pop_fin$treat <- paste(pop_fin$animal,pop_fin$disturb)
 
 ## desired contrasts 
@@ -603,14 +594,33 @@ dimnames(inverse_contp) <- list(
 
 
 
-daph_fin_mod <- glmer(total ~ -1 + treat + (1|TankNum) + (1|block),data = pop_fin, family = "poisson" ) ## do i need to add th e block I think so....
+daph_fin_mod <- glmer(total ~ -1 + treat + (1|TankNum) + (1|block),data = pop_fin, family = "poisson" ) 
 plot(resid(daph_fin_mod))
 qqnorm(resid(daph_fin_mod))
 
-pp <- multcomp::glht(daph_fin_mod,inverse_contp)
+## check for overdispersion based on https://bbolker.github.io/mixedmodels-misc/glmmFAQ.html
+overdisp_fun <- function(model) {
+    rdf <- df.residual(model)
+    rp <- residuals(model,type="pearson")
+    Pearson.chisq <- sum(rp^2)
+    prat <- Pearson.chisq/rdf
+    pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE)
+    c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
+}
+
+
+overdisp_fun(daph_fin_mod) ## this is overdispersed
+
+## so use negative binomial 
+daph_fin_nb <- glmer.nb(total ~ -1 + treat + (1|TankNum) + (1|block),data = pop_fin)
+
+
+
+
+pp <- multcomp::glht(daph_fin_nb,inverse_contp)
 summary(pp)
 
-e1_pop <-  emmeans(daph_fin_mod, ~treat, type = "response")
+e1_pop <-  emmeans(daph_fin_nb, ~treat, type = "response")
 
 plot(e1_pop)
 
@@ -636,13 +646,15 @@ dd <- dat_dist %>% filter(! treatment %in% c(5,6,9,10,13,14))%>% filter(animal %
 names(dd) <- c("TankNum", "E1")
 dd1 <- left_join(popB,dd, by= "TankNum")
 daph_dist <- dd1 %>% filter(Exptday >= E1)
-daph_avg_pop <- daph_dist %>% group_by(TankNum, Exptday) %>% 
-  mutate(pop = mean(total, na.rm= TRUE), sdpop= sd(total, na.rm = T))
-daph_max <- daph_avg_pop %>% group_by(TankNum) %>% filter(pop == max(pop))
+##daph_avg_pop <- daph_dist %>% group_by(TankNum, Exptday) %>% 
+  ##mutate(pop = mean(total, na.rm= TRUE), sdpop= sd(total, na.rm = T))
+##daph_max <- daph_avg_pop %>% group_by(TankNum) %>% filter(pop == max(pop))
 
 daph_max$treat <- paste(daph_max$animal, daph_max$disturb)
 
-daph_max_mod <- lm(log(pop) ~ treat, data = daph_max, weights = sdpop)
+## daph_max_mod <- lm(log(pop) ~ treat, data = daph_max, weights = sdpop) 
+
+## weights multiplication of squared residuals
 
 plot(resid(daph_max_mod))
 qqnorm(resid(daph_max_mod))
