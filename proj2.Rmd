@@ -61,7 +61,7 @@ df <- dat %>% filter(disturb == "y")
  
 df <- df %>% group_by(animal, ExptDay) %>% summarize(avg = mean(NH4, na.rm = T), sd = sd(NH4, na.rm = T)) 
 
-ggplot(data = df[df$ExptDay < 22,], aes(ExptDay, avg, color = animal)) + geom_point() + geom_errorbar(aes(ymin= avg-sd, ymax = avg+sd)) 
+##ggplot(data = df[df$ExptDay < 22,], aes(ExptDay, avg, color = animal)) + geom_point() + geom_errorbar(aes(ymin= avg-sd, ymax = avg+sd)) 
 
 ```
 
@@ -176,7 +176,7 @@ nh4_final <- ggplot(data = finday, aes(animal, NH4, color = disturb)) + geom_box
  
 ```{r chl final}
 
-dat1 <- end %>% filter(disturb == "y")
+#dat1 <- end %>% filter(disturb == "y") 
 
 
 ## Put the order of the factors in a more reasonable order
@@ -202,6 +202,12 @@ dimnames(inverse_cont) <- list(
   ,   levels(dat1$animal)
 )
 
+
+
+## still wrong what i actually want to understand resilience is the difference between undisturbed and disturbed for particular herbivore combination (daphnia y - daphnia n) > or less than < the difference in another treatment (snail y vs snail n) 
+
+
+
 ## attempt to invert contrast matrix: doesn't work because we have
 ##  linearly dependent contrasts (sums of columns 1-3 == column 4)
 #try(cont <- solve(inverse_cont))
@@ -225,12 +231,12 @@ dat1 <- dat1 %>% filter(!is.na(adj_chl))
 
 
 ## no adjustment for negative values
-finmod0 <- lm(log10(adj_chl) ~ -1 + animal, data = dat1)
-finmodsq <- lm(sqrt(adj_chl) ~ -1 + animal, data = dat1)
+#finmod0 <- lm(log10(adj_chl) ~ -1 + animal, data = dat1)
+#finmodsq <- lm(sqrt(adj_chl) ~ -1 + animal, data = dat1)
 
 #drop negative values
 finmod00 <- lmer(log10(adj_chl) ~ -1 + animal + (1|block), data = dat1[dat1$adj_chl > 0, ])
-finmod00sq <- lm(sqrt(adj_chl) ~ -1 + animal, data = dat1[dat1$adj_chl > 0, ])
+#finmod00sq <- lm(sqrt(adj_chl) ~ -1 + animal, data = dat1[dat1$adj_chl > 0, ])
 
 # set threshhold
 #dat1[dat1$adj_chl < 0.001,] <- 0.1
@@ -257,10 +263,6 @@ e1 <-  emmeans(finmod00, ~animal, type = "response")
 
 plot(e1)
 ## vignette("multcomp-examples",package="multcomp") ## p. 11
-
-### Fit the model with contrasts
-## (don't do this, we hadn't inverted the contrast matrix yet)
-## finmod <- lm(log(Chl) ~ animal, data = dat1, contrasts = list(animal = cont[,-1]))
 
 
 plot(resid(finmod00))
@@ -369,6 +371,11 @@ plot(resid(amm_end))
 qqnorm(resid(amm_end))
 performance::r2(amm_end)
 
+
+qqnorm(resid(amm_end))
+qqline(resid(amm_end))
+plot(resid(amm_end))
+
 amm1 <- multcomp::glht(amm_end,inverse_cont)
 (samm <- summary(amm1))
 plot(amm1)
@@ -406,7 +413,6 @@ performance::r2(nh4_max_mod)
 
 plot(resid(nh4_max_mod))
 qqnorm(resid(nh4_max_mod)) #hmm
-
 
 
 
@@ -448,7 +454,7 @@ dat2 <- dat %>% filter(ExptDay==1)%>%dplyr::select(treatment, disturb, animal, T
 sed3 <- left_join(dat2,sed2)
 sed3$animal <- factor(sed3$animal,levels = c("none", "snail", "daphnia", "both"))
 
-ggplot(data = sed3, aes(as.factor(treatment), sediment)) + geom_boxplot()
+#ggplot(data = sed3, aes(as.factor(treatment), sediment)) + geom_boxplot()
 ```
 
 
@@ -497,11 +503,10 @@ egg4 <- egg3 %>% filter(animal %in% c("both","daphnia"))
 
 ```{r egg case model}
 eggmod <- glmer(eggs~-1+animal*disturb + (1|block), family = binomial(link= logit), data = egg4)
-## estimate main effects at midpoint by using sum-to-zero contrasts
+## estimate main effects at midpoint by using sum-to-zero contrasts-- why did I do this?? 
 ## (probably better)
 eggmod_cs <- update(eggmod, contrasts=list(animal=contr.sum,disturb=contr.sum))
 
-## this is bernoulli y/n outcome so don't need to check for dispersion ?
 
 
 
@@ -652,9 +657,13 @@ daph_dist <- dd1 %>% filter(Exptday >= E1)
 
 daph_max$treat <- paste(daph_max$animal, daph_max$disturb)
 
-## daph_max_mod <- lm(log(pop) ~ treat, data = daph_max, weights = sdpop) 
+daph_max_mod <- lm(log(pop) ~ treat, data = daph_max, weights = 1/log(sdpop))
+
 
 ## weights multiplication of squared residuals
+## or should be poisson?
+daph_max_mod_p <- glm(pop~animal*treat, data = daph_max, weights = 1/sdpop)
+
 
 plot(resid(daph_max_mod))
 qqnorm(resid(daph_max_mod))
@@ -666,7 +675,7 @@ qqnorm(resid(daph_max_mod))
 
 
 ```{r contrasts pop max}
-pm <- multcomp::glht(daph_max_mod,inverse_contp) ## something about my contrasts is wrong
+pm <- multcomp::glht(daph_max_mod,inverse_contp) 
 summary(pm)
 
 e2_pop <-  emmeans(daph_max_mod, ~treat, type = "response")

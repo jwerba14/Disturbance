@@ -1,0 +1,199 @@
+---
+title: "Disturbance_contrasts"
+author: "Jo"
+date: "31/01/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source("fix_chl.R")
+source("Graphing_Set_Up.R")
+library(lme4)
+library(coefplot)
+library(nlme)
+library(tidyquant)
+library(emmeans)
+library(multcomp)
+library(lmerTest)
+library(gridExtra)
+library(sjstats)
+```
+
+
+Remove treatments with ceriodaphnia since they didn't survive
+```{r}
+dat <- newdat %>% filter(! treatment %in% c(5,6,9,10,13,14))
+dim(dat)
+```
+
+make a columns for disturbed/undisturbed and both/none/cladoceran/snail
+
+```{r}
+dat$disturb <- "X"
+  
+for (i in 1:nrow(dat)){
+  if (dat$treatment[i] ==2| dat$treatment[i] ==4| dat$treatment[i] ==8|
+      dat$treatment[i] ==12){
+    dat$disturb[i] <- "y"
+  } else if (dat$treatment[i] ==1|dat$treatment[i] ==3|dat$treatment[i] ==7|dat$treatment[i] ==11){
+    dat$disturb[i] <- "n"
+  }}
+
+dat$animal <- "X"
+
+for (i in 1:nrow(dat)){
+  if (dat$treatment[i] ==3| dat$treatment[i] ==4){
+    dat$animal[i] <- "daphnia"
+  } else if (dat$treatment[i] ==7|dat$treatment[i] ==8){
+    dat$animal[i] <- "snail"
+  } else if (dat$treatment[i] ==11|dat$treatment[i] ==12){
+    dat$animal[i] <- "both"}
+  else if (dat$treatment[i] ==1|dat$treatment[i] ==2){
+    dat$animal[i] <- "none"}
+}
+
+
+```
+
+
+
+```{r, dates}
+
+## need dummy date variable for tq_mutate to work.... and for random effect of experimental block
+
+Date <- paste(dat$Month, dat$Day,dat$Year, sep = "-")
+
+
+betterDates <- as.Date(Date,
+  format = "%B-%d-%Y")
+
+dates <- data.frame(Dates1 = Date,
+                    Dates2 = betterDates)
+
+p <- dates %>% filter(is.na(Dates2))
+which(is.na(dates$Dates2))
+dates[c(390,400,409,418,421,440),2] <- "2019-03-02"
+dates[419,2] <- "2019-01-31"
+dates[498,2] <- "2019-02-03"
+dates[(which(is.na(dates$Dates2))), 2] <- "2019-03-01"
+
+dat$Date <- dates$Dates2
+
+## add blocking variable
+block <- dat %>% filter(ExptDay == 1) %>% dplyr::select(Date, ExptDay, TankNum)
+block$block <- NA
+for (i in 1:nrow(block)){
+  if (block$Date[i] == "2019-01-21" ) {
+    block$block[i] <- "A"
+  } else if (block$Date[i] == "2019-02-21" ) {
+     block$block[i] <- "B"
+  } else if (block$Date[i] == "2019-01-22" ) {
+     block$block[i] <- "C"
+  } else if (block$Date[i] == "2019-01-25" ) {
+     block$block[i] <- "D"
+  } else if (block$Date[i] == "2019-03-02" ) {
+     block$block[i] <- "E"
+  } else if (block$Date[i] == "2019-01-28" ) {
+     block$block[i] <- "F"  
+  } else if (block$Date[i] == "2019-01-30" ) {
+     block$block[i] <- "G"  
+  } else if (block$Date[i] == "2019-03-01" ) {
+     block$block[i] <- "H"   
+  } else if (block$Date[i] == "2019-02-02" ) {
+     block$block[i] <- "I" 
+  } else if (block$Date[i] == "2019-02-04" ) {
+     block$block[i] <- "J"  
+  } else if (block$Date[i] == "2019-02-05" ) {
+     block$block[i] <- "K"   
+  } 
+}
+
+block <- block %>% dplyr::select(TankNum, block)
+dat <- left_join(dat,block, by = "TankNum")
+dim(dat)
+```
+
+Subset final time point for Nh4 and final 4 days for Chl
+```{r final time point}
+fday <- dat %>% filter(ExptDay == 40)
+l <- as.numeric(unique(fday$TankNum))
+fday1 <- dat %>% filter(ExptDay == 39) %>% filter(TankNum !=20 & TankNum !=21 & TankNum !=22 & TankNum != 23 &
+                                                  TankNum !=24 & TankNum !=25 & TankNum !=26 & TankNum != 27 & 
+                                                  TankNum !=28 & TankNum !=29 & TankNum !=30 & TankNum != 31 & 
+                                                  TankNum !=32 & TankNum !=33 & TankNum !=34 & TankNum != 35 & 
+                                                  TankNum !=36 & TankNum !=37 & TankNum !=38 & TankNum != 39 & 
+                                                  TankNum !=40 & TankNum !=83 & TankNum !=84 & TankNum != 85 & 
+                                                  TankNum !=86 & TankNum !=87 & TankNum !=88 & TankNum != 89 & 
+                                                  TankNum !=90 & TankNum !=91 & TankNum !=92 & TankNum != 93 &
+                                                  TankNum !=94 & TankNum !=95 & TankNum !=96 & TankNum != 97 & 
+                                                  TankNum !=98 & TankNum !=99 & TankNum !=100& TankNum != 101 & 
+                                                  TankNum != 102 & TankNum != 103 & TankNum != 104 & TankNum != 105 & 
+                                                  TankNum != 106 & TankNum != 107) 
+finday <- rbind(fday, fday1)
+dim(finday)
+
+
+endday <- dat %>% filter(ExptDay == 40 | ExptDay == 39 | ExptDay == 38 | ExptDay == 37)
+endday1 <- dat %>% filter(ExptDay == 36) %>% filter(TankNum !=20 & TankNum !=21 & TankNum !=22 & TankNum != 23 &
+                                                  TankNum !=24 & TankNum !=25 & TankNum !=26 & TankNum != 27 & 
+                                                  TankNum !=28 & TankNum !=29 & TankNum !=30 & TankNum != 31 & 
+                                                  TankNum !=32 & TankNum !=33 & TankNum !=34 & TankNum != 35 & 
+                                                  TankNum !=36 & TankNum !=37 & TankNum !=38 & TankNum != 39 & 
+                                                  TankNum !=40 & TankNum !=83 & TankNum !=84 & TankNum != 85 & 
+                                                  TankNum !=86 & TankNum !=87 & TankNum !=88 & TankNum != 89 & 
+                                                  TankNum !=90 & TankNum !=91 & TankNum !=92 & TankNum != 93 &
+                                                  TankNum !=94 & TankNum !=95 & TankNum !=96 & TankNum != 97 & 
+                                                  TankNum !=98 & TankNum !=99 & TankNum !=100& TankNum != 101 & 
+                                                  TankNum != 102 & TankNum != 103 & TankNum != 104 & TankNum != 105 & 
+                                                  TankNum != 106 & TankNum != 107)
+
+end <- rbind(endday, endday1)
+
+
+```
+
+
+Find maximum three day window 
+```{r chl max}
+dat <- dat %>% filter(!is.na(adj_chl))
+#dat_dist <- dat %>% filter(ExptDay >= ExptDay[which(dat$Disturbed=="y")]) ## only days after disturbance, this doesn't work for non-disturbed treatments- obviously
+dat_dist <- dat %>% filter(ExptDay > 19)
+
+chl_rollmean <- dat_dist %>% group_by(treatment) %>%
+    tq_mutate(
+        # tq_mutate args
+        select     = adj_chl,
+        mutate_fun = rollapply, 
+        
+        # rollapply args
+        width      = 3,
+        FUN        = mean,
+        # mean args
+        na.rm  = TRUE,
+        # tq_mutate args
+        col_rename = "mean_3"
+    )   %>%
+ ungroup()
+
+
+max_chl <- chl_rollmean %>% group_by(TankNum) %>% 
+  dplyr::select(TankNum,treatment,animal, disturb,mean_3, block) %>%
+  filter(mean_3 == max(mean_3, na.rm = T))
+
+
+``` 
+
+
+```{r}
+max_chl_daph <- max_chl %>% filter(animal == "daphnia", disturb == "y")
+max_chl_daph1 <-  max_chl %>% filter(animal == "daphnia", disturb == "n")
+
+max_chl_daph$disturbn <- max_chl_daph1$mean_3                                         
+
+max_chl_daph$diff <- max_chl_daph$disturbn - max_chl_daph$mean_3 ## but i want to do this in a randomized way- maybe multiple times? 
+
+
+
+```
+

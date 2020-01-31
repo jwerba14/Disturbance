@@ -22,7 +22,8 @@ str(blank)
 blank <- separate(blank, Date, c("Month", "Day"), sep = " ")
 blank$Day <- as.numeric(as.character(blank$Day))
 
-newdat <- left_join(dat, blank) 
+newdat <- left_join(dat, blank)
+dim(newdat)
 newdat$Blank.Chl[is.na(newdat$Blank.Chl)] <- 0
 
 newdat$adj_chl <- newdat$Chl - newdat$Blank.Chl
