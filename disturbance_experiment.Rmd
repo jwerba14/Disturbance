@@ -177,23 +177,63 @@ chl_rollmean <- dat_dist %>% group_by(treatment) %>%
  ungroup()
 
 
+
 max_chl <- chl_rollmean %>% group_by(TankNum) %>% 
   dplyr::select(TankNum,treatment,animal, disturb,mean_3, block) %>%
   filter(mean_3 == max(mean_3, na.rm = T))
 
-
+max_chl$animal <- as.factor(max_chl$animal)
+## Put the order of the factors in a more reasonable order
+max_chl$animal <- factor(max_chl$animal, levels = c("none", "snail", "daphnia", "both"))
+max_chl$disturb <- as.factor(max_chl$disturb)
+max_chl$disturb <- factor(max_chl$disturb, levels = c("n","y"))
 ``` 
 
+linear model
+```{r}
+maxmod <- lmer(log10(mean_3) ~ -1+animal*disturb + (1|block), data = max_chl)
+plot(resid(maxmod))
+qqnorm(resid(maxmod))
+```
+create contrast matrix
 
 ```{r}
-max_chl_daph <- max_chl %>% filter(animal == "daphnia", disturb == "y")
-max_chl_daph1 <-  max_chl %>% filter(animal == "daphnia", disturb == "n")
 
-max_chl_daph$disturbn <- max_chl_daph1$mean_3                                         
+##none_n, none_y, snail_n, snail_y, daphnia_n, daphnia_y, both_n, both_y ??
+inverse_cont <- matrix(nrow = 6, ncol = 8
+  , data = c(
+    0  ,   0,      0,    0,   -1, 1, 0, 0   ## snail diff to non diff
+  , 0  ,   0,      0,    0,   -1, 0, 1, 0   ## daphnia diff to none diff
+  , 0  ,   0,      0,    0,   -1, 0, 0, 1   ## none diff to both diff
+  , 0  ,   0,      0,    0,   0, -1, 1, 0   ## daphnia diff to snail diff
+  , 0  ,   0,      0,    0,   0, -1, 0, 1   ## snail diff to both diff
+  , 0  ,   0,      0,    0,   0, 0, -1, 1   ## daph diff to both diff
+  )
+  , byrow = TRUE)
 
-max_chl_daph$diff <- max_chl_daph$disturbn - max_chl_daph$mean_3 ## but i want to do this in a randomized way- maybe multiple times? 
+
+
+dimnames(inverse_cont) <- list(
+
+  c( ": snail_vs_none",": daphnia_vs_none","none:both", ": s vs d", "snail: both","daphnia: both")
+  ,   levels(dat1$animal)
+)
+
+
+
+m1 <- multcomp::glht(maxmod,inverse_cont)
+
+
+summary(m1)
+
+e1 <-  emmeans(maxmod, ~animal*disturb, type = "response")
+
+plot(e1)
 
 
 
 ```
+
+
+
 
