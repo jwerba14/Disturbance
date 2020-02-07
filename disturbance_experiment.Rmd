@@ -10,14 +10,11 @@ knitr::opts_chunk$set(echo = TRUE)
 source("fix_chl.R")
 source("Graphing_Set_Up.R")
 library(lme4)
-library(coefplot)
-library(nlme)
 library(tidyquant)
 library(emmeans)
-library(multcomp)
-library(lmerTest)
 library(gridExtra)
 library(sjstats)
+library(stringr)
 ```
 
 
@@ -112,6 +109,7 @@ for (i in 1:nrow(block)){
 block <- block %>% dplyr::select(TankNum, block)
 dat <- left_join(dat,block, by = "TankNum")
 dim(dat)
+dat$disturb <- factor(dat$disturb,levels = c("y", "n"))
 ```
 
 Subset final time point for Nh4 and final 4 days for Chl
@@ -153,6 +151,25 @@ end <- rbind(endday, endday1)
 
 ```
 
+Final day model
+```{r}
+##remove 2 NA values
+finmod00 <- lmer(log(adj_chl) ~ -1 + animal*disturb + (1|block), data =  end[end$adj_chl > 0, ])
+plot(resid(finmod00))
+qqnorm(resid(finmod00))
+
+```
+
+Contrasts of interest
+```{r}
+chlfin <- contrast(regrid(emmeans(finmod00, ~animal*disturb)), interaction = c("pairwise"), by = NULL)
+
+
+##for graphing
+chlfin1 <- emmeans(finmod00, ~animal*disturb)
+chlfin2 <- data.frame(confint(pairs(chlfin1, simple = "disturb")))
+
+```
 
 Find maximum three day window 
 ```{r chl max}
@@ -186,54 +203,83 @@ max_chl$animal <- as.factor(max_chl$animal)
 ## Put the order of the factors in a more reasonable order
 max_chl$animal <- factor(max_chl$animal, levels = c("none", "snail", "daphnia", "both"))
 max_chl$disturb <- as.factor(max_chl$disturb)
-max_chl$disturb <- factor(max_chl$disturb, levels = c("n","y"))
+max_chl$disturb <- factor(max_chl$disturb, levels = c("y","n"))
 ``` 
 
 linear model
 ```{r}
-maxmod <- lmer(log10(mean_3) ~ -1+animal*disturb + (1|block), data = max_chl)
+maxmod <- lmer(log(mean_3) ~ -1+animal*disturb + (1|block), data = max_chl)
 plot(resid(maxmod))
 qqnorm(resid(maxmod))
 ```
-create contrast matrix
 
+contrasts of interest
 ```{r}
 
-##none_n, none_y, snail_n, snail_y, daphnia_n, daphnia_y, both_n, both_y ??
-inverse_cont <- matrix(nrow = 6, ncol = 8
-  , data = c(
-    0  ,   0,      0,    0,   -1, 1, 0, 0   ## snail diff to non diff
-  , 0  ,   0,      0,    0,   -1, 0, 1, 0   ## daphnia diff to none diff
-  , 0  ,   0,      0,    0,   -1, 0, 0, 1   ## none diff to both diff
-  , 0  ,   0,      0,    0,   0, -1, 1, 0   ## daphnia diff to snail diff
-  , 0  ,   0,      0,    0,   0, -1, 0, 1   ## snail diff to both diff
-  , 0  ,   0,      0,    0,   0, 0, -1, 1   ## daph diff to both diff
-  )
-  , byrow = TRUE)
 
+###compares differences of differences- checked with output of summany(maxmod)- gets correct mean estimates
 
+mchl <- contrast(regrid(emmeans(maxmod, ~animal*disturb)), interaction = c("pairwise"), by = NULL)
 
-dimnames(inverse_cont) <- list(
+summary(maxmod)
 
-  c( ": snail_vs_none",": daphnia_vs_none","none:both", ": s vs d", "snail: both","daphnia: both")
-  ,   levels(dat1$animal)
-)
-
-
-
-m1 <- multcomp::glht(maxmod,inverse_cont)
-
-
-summary(m1)
-
-e1 <-  emmeans(maxmod, ~animal*disturb, type = "response")
-
-plot(e1)
-
+##for graphing
+mchl1 <- emmeans(maxmod, ~animal*disturb)
+mchl2 <- data.frame(confint(pairs(mchl1, simple = "disturb")))
 
 
 ```
 
 
+Ammonium final day
+```{r}
 
+amm_final <- lmer(log(NH4)~animal*disturb + (1|block), data = finday)
+plot(resid(amm_final))
+qqnorm(resid(amm_final))
+```
+
+Contrasts
+```{r}
+ammfin <- contrast(regrid(emmeans(amm_final, ~animal*disturb)), interaction = c("pairwise"), by = NULL)
+
+##for graphing
+ammfin1 <- emmeans(amm_final, ~animal*disturb)
+ammfin2 <- data.frame(confint(pairs(ammfin1, simple = "disturb")))
+```
+
+Ammonium maximum model
+```{r}
+## make column with max NH4 reached after day 19
+dat_max <- dat %>% filter(ExptDay > 19) %>% group_by(TankNum) %>% mutate(max_nh4= max(NH4,na.rm = T)) %>% ungroup()
+#filter for only days with highest ammonium reached
+dat_max2 <- dat_max %>% group_by(TankNum) %>% filter(NH4==max_nh4)
+
+amm_max <- lmer(log(NH4) ~ animal*disturb + (1|block), data = dat_max2)
+plot(resid(amm_max))
+qqnorm(resid(amm_max))
+
+```
+Contrasts
+```{r}
+mfin <- contrast(regrid(emmeans(amm_max, ~animal*disturb)),interaction = c("pairwise"), by = NULL)
+
+##for graphing
+mfin1 <- emmeans(amm_max, ~animal*disturb)
+mfin2 <- data.frame(confint(pairs(mfin1, simple = "disturb")))
+
+```
+Graphing
+```{r}
+g <- ggplot(data = chlfin2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab("Herbivore Treatment") + xlab(str_wrap("Proportional Change in Final Chlorophyll (ug/L)", width = 25 )) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("A.") 
+
+g1 <- ggplot(data = mchl2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab(" ") + xlab(str_wrap("Proportional Change in Maximum Chlorophyll (ug/L)", width = 27)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("B.") 
+
+g2 <- ggplot(data = ammfin2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab("Herbivore Treatment") + xlab(str_wrap("Proportional Change in Final Ammonium (mg/L)",width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("C.") 
+
+g3 <- ggplot(data = mfin2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab(" ") + xlab(str_wrap("Proportional Change in Maximum Ammonium (mg/L)", width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("D.") 
+
+grid.arrange(g,g1,g2,g3)
+
+```
 

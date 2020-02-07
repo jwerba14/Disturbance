@@ -1,0 +1,77 @@
+---
+title: "Sediment"
+author: "Jo"
+sed2e: "07/02/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source("fix_chl.R")
+source("Graphing_Set_Up.R")
+library(lme4)
+library(emmeans)
+
+```
+
+```{r sed2a}
+sed <- read.csv("sediment.csv")
+newdat <- newdat %>%filter(ExptDay == 1)%>% dplyr::select(TankNum, treatment)
+sed1 <- left_join(newdat, sed)
+sed1 <- left_join(sed1,block, by= "TankNum")
+sed2 <- sed1 %>% filter(! treatment %in% c(5,6,9,10,13,14))
+
+sed2$disturb <- "X"
+  
+for (i in 1:nrow(sed2)){
+  if (sed2$treatment[i] ==2| sed2$treatment[i] ==4| sed2$treatment[i] ==8|
+      sed2$treatment[i] ==12){
+    sed2$disturb[i] <- "y"
+  } else if (sed2$treatment[i] ==1|sed2$treatment[i] ==3|sed2$treatment[i] ==7|sed2$treatment[i] ==11){
+    sed2$disturb[i] <- "n"
+  }}
+
+sed2$animal <- "X"
+
+for (i in 1:nrow(sed2)){
+  if (sed2$treatment[i] ==3| sed2$treatment[i] ==4){
+    sed2$animal[i] <- "daphnia"
+  } else if (sed2$treatment[i] ==7|sed2$treatment[i] ==8){
+    sed2$animal[i] <- "snail"
+  } else if (sed2$treatment[i] ==11|sed2$treatment[i] ==12){
+    sed2$animal[i] <- "both"}
+  else if (sed2$treatment[i] ==1|sed2$treatment[i] ==2){
+    sed2$animal[i] <- "none"}
+}
+
+
+sed2$animal <- factor(sed2$animal,levels = c("none", "snail", "daphnia", "both"))
+sed2$disturb <- factor(sed2$disturb, levels = c("y", "n"))
+sed2$block <- as.factor(sed2$block)
+```
+
+
+```{r model}
+sedmod <- lmer(log(sediment) ~ -1+ animal*disturb + (1|block),data = sed2 ) ## hmm do all my models need random effect of tank??-- i only have 2 measurement per tank...so that doesn't seem doable but should i do something? 
+plot(resid(sedmod))
+qqnorm(resid(sedmod)) 
+
+```
+
+
+```{r contrasts}
+sedm <- contrast(regrid(emmeans(sedmod, ~animal*disturb)),interaction = c("pairwise"), by = NULL)
+
+##for graphing
+sedm1 <- emmeans(amm_max, ~animal*disturb)
+sedm2 <- data.frame(confint(pairs(sedm1, simple = "disturb")))
+
+```
+
+
+
+
+```{r, echo=FALSE}
+sedg <- ggplot(data = sedm2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab("Herbivore Treatment") + xlab(str_wrap("Proportional Change in Sediment (mL)", width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) 
+```
+

@@ -1,0 +1,178 @@
+---
+title: "Daphnia Populations"
+author: "Jo"
+date: "07/02/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source("fix_chl.R")
+source("Graphing_Set_Up.R")
+library(lme4)
+library(tidyquant)
+library(emmeans)
+library(lmerTest)
+library(gridExtra)
+library(sjstats)
+```
+
+daphnia populations
+```{r daphnia populations}
+pop1 <- pop %>% filter(! treatment %in% c(5,6,9,10,13,14))
+pop1$disturb <- "X"
+  
+for (i in 1:nrow(pop1)){
+  if (pop1$treatment[i] ==2| pop1$treatment[i] ==4| pop1$treatment[i] ==8|
+      pop1$treatment[i] ==12){
+    pop1$disturb[i] <- "y"
+  } else if (pop1$treatment[i] ==1|pop1$treatment[i] ==3|pop1$treatment[i] ==7|pop1$treatment[i] ==11){
+    pop1$disturb[i] <- "n"
+  }}
+
+pop1$animal <- "X"
+
+for (i in 1:nrow(pop1)){
+  if (pop1$treatment[i] ==3| pop1$treatment[i] ==4){
+    pop1$animal[i] <- "daphnia"
+  } else if (pop1$treatment[i] ==7|pop1$treatment[i] ==8){
+    pop1$animal[i] <- "snail"
+  } else if (pop1$treatment[i] ==11|pop1$treatment[i] ==12){
+    pop1$animal[i] <- "both"}
+  else if (pop1$treatment[i] ==1|pop1$treatment[i] ==2){
+    pop1$animal[i] <- "none"}
+}
+
+popA <- pop1 %>% dplyr::select(TankNum, treatment,animal, disturb, Exptday, daphniaC1Adult,daphniaC2Adult,daphniaC3,
+                       daphniaC4Adult,Liters, daphniaC1Juv,daphniaC2Juv,daphniaC3Juv,
+                       daphniaC4Juv)
+popA <- popA %>% gather(key = "subsample", value= "count", -c(TankNum,treatment, Exptday, Liters, animal, disturb))
+
+popB <- popA %>% separate(subsample, into=c("daphnia","subsample","stage"),sep ='([[:upper:]])', extra = "drop", fill = "right" )
+
+
+popB <- popB %>% group_by(TankNum, Exptday, subsample, animal, disturb) %>% 
+  summarize(total = sum(count))
+popB <- left_join(popB, block, by= "TankNum")
+
+```
+
+Final Population
+```{r daphnia final pop}
+pop_fin <- popB %>% group_by(TankNum) %>% filter(Exptday == max(Exptday))
+
+
+pop_fin$treat <- paste(pop_fin$animal,pop_fin$disturb)
+
+pop_fin$animal <- factor(pop_fin$animal, levels = c("daphnia","both"))
+pop_fin$disturb <- factor(pop_fin$disturb, levels = c("y","n"))
+
+daph_fin_mod <- glmer(total ~ -1 + animal*disturb + (1|TankNum) + (1|block),data = pop_fin, family = "poisson" ) 
+plot(resid(daph_fin_mod))
+qqnorm(resid(daph_fin_mod))
+
+## check for overdispersion based on https://bbolker.github.io/mixedmodels-misc/glmmFAQ.html
+overdisp_fun <- function(model) {
+    rdf <- df.residual(model)
+    rp <- residuals(model,type="pearson")
+    Pearson.chisq <- sum(rp^2)
+    prat <- Pearson.chisq/rdf
+    pval <- pchisq(Pearson.chisq, df=rdf, lower.tail=FALSE)
+    c(chisq=Pearson.chisq,ratio=prat,rdf=rdf,p=pval)
+}
+
+
+overdisp_fun(daph_fin_mod) ## this is overdispersed
+
+## so use negative binomial 
+daph_fin_nb <- glmer.nb(total ~ -1 + animal*disturb + (1|TankNum) + (1|block),data = pop_fin)
+## desired contrast is the interaction term
+
+```
+
+
+graphnig
+```{r}
+##for graphing
+pfin1 <- emmeans(daph_fin_nb, ~animal*disturb)
+pfin2 <- data.frame(confint(pairs(pfin1, simple = "disturb")))
+
+
+
+```
+
+
+graph
+```{r plot final pop}
+
+
+popg <- ggplot(data = pfin2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(asymp.LCL), xmax = exp(asymp.UCL)), height = 0.3) + ylab("Herbivore Treatment") + xlab(str_wrap("Proportional Change in Population", width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) 
+
+```
+
+
+Max population- post disturbance
+```{r daphnia max}
+
+pop_post <- pop1 %>% filter(Exptday > 19)
+##hmm not right yet... need to think about how to do this
+chl_rollmean <- pop_post %>% group_by(treatment) %>%
+    tq_mutate(
+        # tq_mutate args
+        select     = adj_chl,
+        mutate_fun = rollapply, 
+        
+        # rollapply args
+        width      = 3,
+        FUN        = mean,
+        # mean args
+        na.rm  = TRUE,
+        # tq_mutate args
+        col_rename = "mean_3"
+    )   %>%
+ ungroup()
+
+
+dd <- dat_dist %>% filter(! treatment %in% c(5,6,9,10,13,14))%>% filter(animal %in% c("both","daphnia")) %>% dplyr::select(TankNum, ExptDay) %>%
+  group_by(TankNum) %>% filter(ExptDay == min(ExptDay))  
+names(dd) <- c("TankNum", "E1")
+dd1 <- left_join(popB,dd, by= "TankNum")
+daph_dist <- dd1 %>% filter(Exptday >= E1)
+
+
+daph_max$treat <- paste(daph_max$animal, daph_max$disturb)
+
+daph_max_mod <- lm(log(pop) ~ treat, data = daph_max, weights = 1/log(sdpop))
+
+
+## weights multiplication of squared residuals
+## or should be poisson?
+daph_max_mod_p <- glm(pop~animal*treat, data = daph_max, weights = 1/sdpop)
+
+
+plot(resid(daph_max_mod))
+qqnorm(resid(daph_max_mod))
+
+
+
+
+```
+
+
+```{r contrasts pop max}
+pm <- multcomp::glht(daph_max_mod,inverse_contp) 
+summary(pm)
+
+e2_pop <-  emmeans(daph_max_mod, ~treat, type = "response")
+
+popmg <- data.frame(e2_pop)
+popmg <- popmg %>% separate(treat,into=c("animal","disturb"),sep =' ' )
+popmg$treat <- paste(popmg$animal,popmg$disturb)
+
+popg_max <- ggplot(data = popmg, aes(treat,response)) +  
+   geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= lower.CL, ymax=upper.CL, color= disturb), width = 0.3)+ ylab("Daphnia magna per 10 mL ") + 
+  xlab("Herbivore Treatment")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + ggtitle("B. Maximum population") + labs(color = "Disturbance", shape = "Herbivore") + theme(legend.position = c(0.85,0.25), legend.box = "horizontal", legend.background = element_rect(fill = "transparent"))
+
+grid.arrange(popg, popg_max, nrow = 2)
+
+```
