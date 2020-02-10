@@ -7,14 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-source("fix_chl.R")
-source("Graphing_Set_Up.R")
-library(lme4)
-library(tidyquant)
-library(emmeans)
-library(lmerTest)
-library(gridExtra)
-library(sjstats)
+source("data_set_up.R")
 ```
 
 daphnia populations
@@ -104,9 +97,20 @@ pfin2 <- data.frame(confint(pairs(pfin1, simple = "disturb")))
 
 graph
 ```{r plot final pop}
+popg <- ggplot(data = pfin2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(asymp.LCL), xmax = exp(asymp.UCL)), height = 0.3) + ylab("Herbivore Treatment") + xlab(str_wrap("Proportional Change in Population", width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("B.")
 
+```
 
-popg <- ggplot(data = pfin2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(asymp.LCL), xmax = exp(asymp.UCL)), height = 0.3) + ylab("Herbivore Treatment") + xlab(str_wrap("Proportional Change in Population", width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) 
+```{r plot final pop}
+e1_pop <-  emmeans(daph_fin_nb, ~animal*disturb, type = "response")
+
+popgd <- data.frame(e1_pop)
+popgd$treat <- paste(popgd$animal,popgd$disturb)
+
+popg_full <- ggplot(data = popgd, aes(treat,response)) +  
+   geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL, color= disturb), width = 0.3)+ ylab("Daphnia magna per 10mL") + 
+  xlab(" ")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + ggtitle("A. Final Population")+ theme(legend.position = "none") 
+
 
 ```
 
@@ -114,47 +118,35 @@ popg <- ggplot(data = pfin2, aes(exp(estimate), animal)) + geom_point(size=3) + 
 Max population- post disturbance
 ```{r daphnia max}
 
-pop_post <- pop1 %>% filter(Exptday > 19)
-##hmm not right yet... need to think about how to do this
-chl_rollmean <- pop_post %>% group_by(treatment) %>%
-    tq_mutate(
-        # tq_mutate args
-        select     = adj_chl,
-        mutate_fun = rollapply, 
-        
-        # rollapply args
-        width      = 3,
-        FUN        = mean,
-        # mean args
-        na.rm  = TRUE,
-        # tq_mutate args
-        col_rename = "mean_3"
-    )   %>%
- ungroup()
+pop_post <- popB %>% filter(Exptday > 19) 
 
 
-dd <- dat_dist %>% filter(! treatment %in% c(5,6,9,10,13,14))%>% filter(animal %in% c("both","daphnia")) %>% dplyr::select(TankNum, ExptDay) %>%
-  group_by(TankNum) %>% filter(ExptDay == min(ExptDay))  
-names(dd) <- c("TankNum", "E1")
-dd1 <- left_join(popB,dd, by= "TankNum")
-daph_dist <- dd1 %>% filter(Exptday >= E1)
+pop_max <- pop_post %>% group_by(TankNum, Exptday) %>% mutate(mean_pop = mean(total),
+                                                              sd_pop = sd(total))
+   
+
+pop_max1 <- pop_max %>% group_by(TankNum) %>% filter(mean_pop == max(mean_pop))
+pop_max2 <- pop_max1 %>% group_by(TankNum) %>% slice(1)
 
 
-daph_max$treat <- paste(daph_max$animal, daph_max$disturb)
-
-daph_max_mod <- lm(log(pop) ~ treat, data = daph_max, weights = 1/log(sdpop))
-
-
+dim(pop_max2)
 ## weights multiplication of squared residuals
 ## or should be poisson?
-daph_max_mod_p <- glm(pop~animal*treat, data = daph_max, weights = 1/sdpop)
+daph_max_mod_p <- lmer(log(mean_pop)~animal*disturb + (1|block), data = pop_max2, weights = 1/sd_pop)
 
 
-plot(resid(daph_max_mod))
-qqnorm(resid(daph_max_mod))
+plot(resid(daph_max_mod_p))
+qqnorm(resid(daph_max_mod_p))
+
+pmax1 <- emmeans(daph_max_mod_p, ~animal*disturb) # produces NAs....
+pmax2 <- data.frame(confint(pairs(pmax1, simple = "disturb")))
+
+```
 
 
-
+graph
+```{r plot final pop}
+popmax1 <- ggplot(data = pmax2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab("Herbivore Treatment") + xlab(str_wrap("Proportional Change in Final Population", width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("C.")
 
 ```
 

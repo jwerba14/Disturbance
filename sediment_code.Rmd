@@ -7,10 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-source("fix_chl.R")
-source("Graphing_Set_Up.R")
-library(lme4)
-library(emmeans)
+source("data_set_up.R")
 
 ```
 
@@ -48,6 +45,7 @@ for (i in 1:nrow(sed2)){
 sed2$animal <- factor(sed2$animal,levels = c("none", "snail", "daphnia", "both"))
 sed2$disturb <- factor(sed2$disturb, levels = c("y", "n"))
 sed2$block <- as.factor(sed2$block)
+dim(sed2)
 ```
 
 
@@ -63,7 +61,7 @@ qqnorm(resid(sedmod))
 sedm <- contrast(regrid(emmeans(sedmod, ~animal*disturb)),interaction = c("pairwise"), by = NULL)
 
 ##for graphing
-sedm1 <- emmeans(amm_max, ~animal*disturb)
+sedm1 <- emmeans(sedmod, ~animal*disturb)
 sedm2 <- data.frame(confint(pairs(sedm1, simple = "disturb")))
 
 ```
