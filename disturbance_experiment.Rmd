@@ -8,7 +8,6 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 source("data_set_up.R")
-
 ```
 
 
@@ -65,7 +64,6 @@ qqnorm(resid(finmod00))
 Contrasts of interest
 ```{r}
 chlfin <- contrast(regrid(emmeans(finmod00, ~animal*disturb)), interaction = c("pairwise"), by = NULL)
-
 
 ##for graphing
 chlfin1 <- emmeans(finmod00, ~animal*disturb)
@@ -173,19 +171,19 @@ mfin2 <- data.frame(confint(pairs(mfin1, simple = "disturb")))
 ```
 Graphing
 ```{r}
-g <- ggplot(data = chlfin2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab("Herbivore Treatment") + xlab(str_wrap("Proportional Change in Final Chlorophyll (ug/L)", width = 25 )) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("A.") 
+g <- ggplot(data = chlfin2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab("Herbivore Treatment") + xlab(str_wrap("Proportional Change in Final Chlorophyll (ug/L)", width = 25 )) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("C.") 
 
-g1 <- ggplot(data = mchl2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab(" ") + xlab(str_wrap("Proportional Change in Maximum Chlorophyll (ug/L)", width = 27)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("B.") 
+g1 <- ggplot(data = mchl2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab("") + xlab(str_wrap("Proportional Change in Maximum Chlorophyll (ug/L)", width = 27)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("D.") 
 
 g2 <- ggplot(data = ammfin2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab("Herbivore Treatment") + xlab(str_wrap("Proportional Change in Final Ammonium (mg/L)",width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("C.") 
 
 g3 <- ggplot(data = mfin2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab(" ") + xlab(str_wrap("Proportional Change in Maximum Ammonium (mg/L)", width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("D.") 
 
-grid.arrange(g,g1,g2,g3)
+
 
 ```
 
-graph raw data for supplement
+graph raw data
 ```{r}
 final <- end %>% filter(adj_chl > 0) %>% group_by(animal, disturb) %>% summarize(chl = mean(adj_chl), upper = quantile(adj_chl, 0.975), lower = quantile(adj_chl, 0.025))
 final$treat <- paste(final$animal, final$disturb)
@@ -198,7 +196,7 @@ maxchl <- max_chl %>% group_by(animal,disturb) %>% summarize(chl = mean(mean_3),
 maxchl$treat <- paste(maxchl$animal, maxchl$disturb)
 
 max_chl_g <- ggplot(data= maxchl, aes(treat, chl)) + 
-geom_point(aes(shape = disturb, color = animal), size = 3) + geom_errorbar(aes(ymin= lower, ymax = upper), width = 0.3) + xlab(" ") + ylab("Maximum Chlorophyll (ug/L)") + ggtitle("B.") + theme(legend.position = "none") + theme(axis.line = element_line(colour = "black"), panel.border = element_blank(), axis.text.x = element_blank()) + scale_color_manual(values = c("black","darkslategray",  "azure4","darkgray"))
+geom_point(aes(shape = disturb, color = animal), size = 3) + geom_errorbar(aes(ymin= lower, ymax = upper), width = 0.3) + xlab(" ") + ylab("Maximum Chlorophyll (ug/L)") + ggtitle("B.") + theme(legend.position = "none") + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black","darkslategray",  "azure4","darkgray"))+ scale_x_discrete(labels = function(x) str_wrap(x, width = 5))
 
 
 nhfin <- finday %>% filter(!is.na(NH4)) %>% group_by(animal, disturb) %>% summarize(amm = mean(NH4), upper = quantile(NH4,0.975), lower = quantile(NH4,0.025))
@@ -206,15 +204,36 @@ nhfin$treat <- paste(nhfin$animal,nhfin$disturb)
 
 
 fin_amm <- ggplot(data = nhfin, aes(treat, amm))  + 
-geom_point(aes(shape = disturb, color = animal), size = 3) + geom_errorbar(aes(ymin= lower, ymax = upper), width = 0.3) + xlab(" ") + ylab("Final Ammonium (mg/L)") + ggtitle("C.") + theme(legend.position = "none") + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) +  scale_color_manual(values = c("black","darkslategray",  "azure4","darkgray")) + scale_x_discrete(labels = function(x) str_wrap(x, width = 5))
+geom_point(aes(shape = disturb, color = animal), size = 3) + geom_errorbar(aes(ymin= lower, ymax = upper), width = 0.3) + xlab(" ") + ylab("Final Ammonium (mg/L)") + ggtitle("A.") + theme(legend.position = "none") + theme(axis.line = element_line(colour = "black"), panel.border = element_blank(), axis.text.x = element_blank()) +  scale_color_manual(values = c("black","darkslategray",  "azure4","darkgray")) 
 
 maxamm <- dat_max2 %>% group_by(disturb, animal) %>% summarize(amm = mean(NH4), upper = quantile(NH4,0.975), lower = quantile(NH4,0.025))
 maxamm$treat <- paste(maxamm$animal,maxamm$disturb)
 
 max_amm <- ggplot(data = maxamm, aes(treat, amm))  + 
-geom_point(aes(shape = disturb, color = animal), size = 3) + geom_errorbar(aes(ymin= lower, ymax = upper), width = 0.3) + xlab(" ") + ylab("Maximum Ammonium (mg/L)") + ggtitle("D.") + theme(legend.position = "none") + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black","darkslategray",  "azure4","darkgray")) + scale_x_discrete(labels = function(x) str_wrap(x, width = 5))
+geom_point(aes(shape = disturb, color = animal), size = 3) + geom_errorbar(aes(ymin= lower, ymax = upper), width = 0.3) + xlab(" ") + ylab("Maximum Ammonium (mg/L)") + ggtitle("B.") + theme(legend.position = "none") + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black","darkslategray",  "azure4","darkgray")) + scale_x_discrete(labels = function(x) str_wrap(x, width = 5))
 
-grid.arrange(final_chl_g,max_chl_g , fin_amm, max_amm)
+grid.arrange(final_chl_g,g,max_chl_g,g1, nrow=2)
+
+gl <- list(final_chl_g,max_chl_g,g,g1)
+grid.arrange(
+  grobs = gl,
+  widths = c(1, 1, 1,1),
+  layout_matrix = rbind(c(1, 1, 1,1),
+                        c(2, 2, 2,2),
+                        c(3,3,4, 4))
+)
+
+grid.arrange(fin_amm,g2, max_amm,g3)
+gl2 <- list(fin_amm,max_amm,g2, g3)
+grid.arrange(
+  grobs = gl2,
+  widths = c(1, 1, 1,1),
+  layout_matrix = rbind(c(1, 1, 1,1),
+                        c(2, 2, 2,2),
+                        c(3,3,4, 4))
+)
+
+
 
 ```
 
