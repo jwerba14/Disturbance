@@ -132,15 +132,44 @@ pop_max2 <- pop_max1 %>% group_by(TankNum) %>% slice(1)
 dim(pop_max2)
 ## weights multiplication of squared residuals
 ## or should be poisson?
-daph_max_mod_p <- lmer(log(mean_pop)~animal*disturb + (1|block), data = pop_max2, weights = 1/sd_pop)
+daph_max_mod_p <- lmer(log(mean_pop)~animal*disturb + (1|block), data = pop_max2, weights = 1/sd_pop^2)
 
+
+## refit with parameters for each group
+dd2 <- update(daph_max_mod_p, ~ -1 + animal:disturb + (1|block))
+cc1 <- confint(dd2,parm="beta_",method="Wald")
+res <- data.frame(ttt=names(fixef(dd2)),
+                  est=fixef(dd2),
+                  setNames(as.data.frame(cc1),c("lwr","upr")),
+                  stringsAsFactors=FALSE)
+rownames(res) <- NULL
+ggplot(res,aes(ttt,est,ymin=lwr,ymax=upr))+
+  geom_pointrange() + coord_flip()
+## cc2 <- confint(dd2,parm="beta_")  ## ugh
+
+## ((b1-b3)- (b2-b4)) = b1 - b3 - b2 + b4 = b1 - b2 - b3 + b4
+library(multcomp)
+### testing hypothesis
+confint(glht(dd2, linfct=matrix(c(1,-1,-1,1),nrow=1)))
+## sub-contrasts
+cc3 <- confint(glht(dd2, linfct=matrix(c(-1,0,1,0,
+                                         0,-1,0,1),
+                                       nrow=2,byrow=TRUE)))
+dd3 <- data.frame(term=c("disturb/both","disturb/daphnia"),
+           cc3$confint)
+ggplot(dd3,aes(term,Estimate,ymin=lwr,ymax=upr))+
+  geom_pointrange() + coord_flip()
+
+### end BMB junk
 
 plot(resid(daph_max_mod_p))
 qqnorm(resid(daph_max_mod_p))
 
 pmax1 <- emmeans(daph_max_mod_p, ~animal*disturb) # produces NAs....
-pmax2 <- data.frame(confint(pairs(pmax1, simple = "disturb")))
 
+eigen(vcov(daph_max_mod_p))
+
+pmax2 <- data.frame(confint(pairs(pmax1, simple = "disturb")))
 ```
 
 
