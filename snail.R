@@ -4,8 +4,9 @@ library(emmeans)
 library(coefplot)
 library(gridExtra)
 source("Graphing_Set_Up.R")
-
+source("data_set_up.R")
 snail <- read.csv("snail_survival.csv")
+dim(snail)
 size <- read.csv("snail_size.csv")
 
 ## check that counts match between two documents
@@ -27,7 +28,7 @@ ggplot(data = snail, aes(ExptDay, Snail)) + geom_point(aes(color=as.factor(TankN
 
 
 snail <- snail %>% mutate(proportion = snail$Snail/4,total=4)
-## for first pass convert any that were greater than 4 to 4
+##convert any that were greater than 4 to 4
 
 ## want to remove babies from count for this analysis-- 
 ##where babies were entered here all 4 original survived
@@ -63,9 +64,15 @@ for (i in 1:nrow(snail)){
 #snail <- snail %>% mutate(expt2 = ExptDay/maxd)
 
 snail2 <- snail %>% mutate(proportion = Snail/4, total=4, died=total-Snail) %>% filter(proportion<=1)
-mod <- glmer(data = snail2, cbind(Snail,died) ~ ExptDay*(animal+disturb)+(1|TankNum), family = binomial(link = "logit"))
+dim(snail2)
 
-
+## add in block (starting date)
+snail3 <- left_join(snail2, block)
+snail3$block <- as.factor(snail3$block)
+dim(snail3)
+mod <- glmer(data = snail3, cbind(Snail,died) ~ -1 + ExptDay*(animal+disturb)+(1|TankNum)+(1|block), family = binomial(link = "logit"))
+plot(resid(mod))
+qqnorm(resid(mod))
 ### plot
 newdat <- expand.grid(
   proportion = 0,
@@ -73,35 +80,43 @@ newdat <- expand.grid(
   ExptDay = seq(1,40,1),
   animal = c("snail", "daphnia"),
   disturb = c("y", "n"),
-  TankNum = unique(snail$TankNum)
+  TankNum = unique(snail$TankNum),
+  block = unique(snail3$block)
   
 )
 
 newdat$proportion <- predict(mod, newdata = newdat, type = "response")
 
-snail3 <- snail2 %>% group_by(animal, disturb, ExptDay) %>% 
-  summarize(prop = mean(proportion), sd = sd(proportion))
+snail4 <- snail3 %>% group_by(animal, disturb, ExptDay) %>% 
+  summarize(prop = mean(proportion), upr = quantile(proportion, 0.975), 
+            lwr = quantile(proportion, 0.025))
 
 newdat2 <- newdat %>% group_by(animal, disturb, ExptDay) %>%
   summarize(prop = mean(proportion), upper = quantile(proportion, 0.975),
             lower = quantile(proportion, 0.025))
 
-snail_pop <- (ggplot(data = snail3, aes(x=ExptDay, y=prop,color=animal,lty=disturb, shape = disturb)) 
+snail4$treat <- paste(snail4$animal, snail4$disturb)
+newdat2$treat <- paste(newdat2$animal, newdat2$disturb)
+snail_pop <- (ggplot(data = snail4, aes(x=ExptDay, y=prop)) 
   
-  + geom_point()
-  +geom_errorbar(aes(ymin = prop-sd, ymax=prop+sd), width = 0.3)
-  + geom_line(data= newdat2, aes(color = animal,linetype = disturb)) 
-  + geom_ribbon(data = newdat2, aes(ymin = lower, ymax = upper), alpha = 0.15) 
+  + geom_point(aes(color=treat, shape=disturb))
+  +geom_errorbar(aes(ymin = lwr, ymax=upr, color = treat), width = 0.3)
+  + geom_line(data= newdat2, aes(color = treat,linetype = disturb),size = 1) 
+  + geom_ribbon(data = newdat2, aes(ymin = lower, ymax = upper, color = treat, fill = treat), alpha = 0.15) 
   + xlab("Day") + ylab("Proportion Surviving")
-  + scale_color_discrete(name = "Herbivore Treatment", labels = c("Both", "Snail")) 
-  + scale_linetype_discrete(name = "Disurbance") + scale_shape_discrete(name = "Disurbance")
+  + scale_color_discrete(name = str_wrap("Herbivore Treatment", width =10), labels = c("Daphnia N", "Daphnia Y", "Snail N", "Snail Y")) 
+  + scale_linetype_discrete(name = "Disurbance") + scale_shape_discrete(guide = FALSE) + 
+  scale_fill_discrete(guide = FALSE)+ ggtitle("A.")+
+  theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + 
+  theme(legend.position = "bottom", legend.direction = "horizontal", 
+        legend.box = "vertical")
 )
 
 print(snail_pop)
   
 
 ##snail growth
-## going through the data I just don't think it is consistent enough to include
+## going through the data I just don't think it was entered consistently enough to include
 size1 <- size %>% gather(key = "individual", value = "size", -c(Date, TankNum,treatment, ExptDay, Snail.Count, egg.mass, babies))
 size2 <- size1[grep("\\[", size1$size, invert = T), ]
 size2$size <- as.numeric(as.character(size2$size))
@@ -156,30 +171,44 @@ for (i in 1:nrow(eggm)) {
   }
 }
 
-eggmod <- glm(egg.mass.p ~ animal*disturb, family = binomial(link = logit), data = eggm)
+dim(eggm)
+eggm1 <- left_join(eggm, block)
+dim(eggm1)
+eggmod <- glmer(egg.mass.p ~ animal*disturb+(1|block), family = binomial(link = logit), data = eggm1)
 
-
-eggmod_cs <- update(eggmod, contrasts=list(animal=contr.sum,disturb=contr.sum))
-
-
+## hmm don't quite understand scale of estimates....
 dd <- as.data.frame(emmeans(eggmod,~animal*disturb),type="response")
 
 dd$treat <- paste(dd$animal,dd$disturb)
 
-snail_eggg <- ggplot(data = dd, aes(treat, prob)) + geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL, color= disturb), width = 0.3)+ 
-  ylab("Probablity Snail Eggmass Present") + 
+snail_eggg <- ggplot(data = dd, aes(treat, prob)) + geom_point(aes(color = disturb, shape = animal), size = 3) +
+  geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL, color= disturb), width = 0.3)+ 
+  ylab(str_wrap("Probablity Eggmass Present", width = 20)) + 
   xlab(" ")+
   theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + 
-  labs(color="Disturbance", shape = "Herbivore") + ggtitle("A.")
+  labs(color="Disturbance", shape = "Herbivore") + ggtitle("C.")+ theme(legend.position = "none")
 
 
 
 print(snail_eggg)
 
+## graph difference of differences
+nd <- (contrast(regrid(emmeans(eggmod, ~animal*disturb)), interaction = "pairwise", by = "animal"))
+nd1 <- data.frame(confint(nd))
+
+
+snail_egg_diff <- ggplot(data = nd1, aes(estimate, animal)) + geom_point(size = 3) +
+  geom_errorbarh(aes(xmin= asymp.LCL, xmax=asymp.UCL), height = 0.3)+ 
+  xlab(str_wrap("Difference (logit scale) Snail Eggmass Present", width = 27)) + 
+  ylab(" ")+
+  theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + 
+   ggtitle("B.")
+
+print(snail_egg_diff)
 ## juvenile count
 ## so few tanks with individuals
 
-juv <- glm(babies~animal*disturb, family = poisson, data = eggm)
+juv <- glm(babies~animal*disturb, family = poisson, data = eggm1) ## hmm can't currently add block
 juv_cs <- update(juv, contrasts=list(animal=contr.sum,disturb=contr.sum))
 #under/over dispersion of our error distribution by looking at the ratio of Pearson's residuals and the residual degrees of freedom \citep{bolker2008ecological}
 overdisp_fun <- function(model) {
@@ -192,6 +221,8 @@ overdisp_fun <- function(model) {
 }
 
 overdisp_fun(juv)
+
+
 
 dj <- as.data.frame(emmeans(juv,~animal*disturb),type="response")
 
@@ -208,7 +239,33 @@ snail_juv <- ggplot(data = dj, aes(treat, rate)) + geom_point(aes(color = distur
 
 print(snail_juv)
 
-grid.arrange(snail_eggg, snail_juv)
+##hmm maybe because so few juveniles just want to show there are few so forget the model and just 
+# graph raw data
+
+eggm2 <- eggm1 %>% group_by(animal, disturb) %>% summarize(juv = mean(babies), 
+                                                           lwr = quantile(babies, 0.025),
+                                                           upr = quantile(babies, 0.975))
+
+eggm2$treat <- paste(eggm2$animal,eggm2$disturb)
+juv_snail_g <- ggplot(data = eggm2, aes(treat, juv)) + 
+  geom_point(size= 3, aes(color=disturb, shape = animal))+
+  geom_errorbar(aes(color=disturb, ymax=upr, ymin=lwr))+
+  theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) +
+  scale_color_manual(values = c("black", "seashell4")) + 
+  labs(color="Disturbance", shape = "Herbivore") + ggtitle("D.") + 
+  ylab(str_wrap("Juvenile Count", width = 10))+
+  xlab(" ") + theme(legend.position = "none")
+
+print(juv_snail_g)
+
+gl3 <- list(snail_pop,snail_egg_diff,snail_eggg, juv_snail_g)
+grid.arrange(
+  grobs = gl3,
+  widths = c(1, 1, 1,1),
+  layout_matrix = rbind(c(1, 1, 2,2),
+                        c(1, 1,3,3),
+                        c(1,1,4,4))
+)
 
 
 
