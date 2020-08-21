@@ -97,7 +97,15 @@ pfin2 <- data.frame(confint(pairs(pfin1, simple = "disturb")))
 
 graph
 ```{r plot final pop}
-popg <- ggplot(data = pfin2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(asymp.LCL), xmax = exp(asymp.UCL)), height = 0.3) + ylab("Herbivore Treatment") + xlab(str_wrap("Proportional Change in Final Population", width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("B.")
+popg <- ggplot(data = pfin2, aes(exp(estimate), animal)) + geom_point(size=4) + geom_errorbarh(aes(xmin=exp(asymp.LCL), xmax = exp(asymp.UCL)), height = 0.3) + ylab("") + xlab(str_wrap("Proportional Change in Final Population", width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + geom_vline(xintercept = 1, color = "gray68", linetype = "dashed") + scale_y_discrete(labels = str_wrap(c("Daphnia","Daphnia and Physa" ), width = 10))
+
+```
+
+save to pdf
+```{r}
+pdf(file = "daph_pop_change.pdf", width =5, height = 4)
+popg
+dev.off()
 
 ```
 
@@ -108,8 +116,9 @@ popgd <- data.frame(e1_pop)
 popgd$treat <- paste(popgd$animal,popgd$disturb)
 
 popg_full <- ggplot(data = popgd, aes(treat,response)) +  
-   geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL, color= disturb), width = 0.3)+ ylab("Daphnia magna per 10mL") + 
-  xlab(" ")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + ggtitle("A. Final Population")+ theme(legend.position = "none") 
+   geom_point(size = 4) + geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL), width = 0.3)+ ylab("Daphnia magna per 10mL") + 
+  xlab(" ")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank())  + ggtitle("A. Final Population")+ theme(legend.position = "none") + 
+  scale_x_discrete(labels = str_wrap(c("Daphnia and Physa Not Disturbed", "Daphnia and Physa Disturbed", "Daphia Not Disturbed", "Daphnia Disturbed"),width = 8))
 
 
 ```
@@ -130,8 +139,10 @@ pop_max2 <- pop_max1 %>% group_by(TankNum) %>% slice(1)
 
 
 dim(pop_max2)
+
+pop_max2$animal <- factor(pop_max2$animal, levels = c("daphnia","both"))
 ## weights multiplication of squared residuals
-## or should be poisson?
+
 daph_max_mod_p <- lmer(log(mean_pop)~-1+animal*disturb + (1|block), data = pop_max2, weights = 1/sd_pop^2)
 
 
@@ -166,8 +177,17 @@ ggplot(dd3,aes(term,Estimate,ymin=lwr,ymax=upr))+
 
 graph
 ```{r plot final pop}
-popmax1 <- ggplot(data = dd3, aes(exp(Estimate), term)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lwr), xmax = exp(upr)), height = 0.3) + ylab("Herbivore Treatment") + xlab(str_wrap("Proportional Change in Maximum Population", width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("D.")
+## reorder levels to match other datasets
+dd3$term <- factor(dd3$term, levels= c("Daphnia", "Both"))
 
+popmax1 <- ggplot(data = dd3, aes(exp(Estimate), term)) + geom_point(size=4) + geom_errorbarh(aes(xmin=exp(lwr), xmax = exp(upr)), height = 0.3) + ylab(" ") + xlab(str_wrap("Proportional Change in Maximum Population", width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + geom_vline(xintercept = 1, color = "gray68", linetype = "dashed") + scale_y_discrete(labels = str_wrap(c("Daphnia","Daphnia and Physa" ), width = 10))
+```
+
+save to pdf
+```{r}
+pdf(file = "max_pop_change.pdf", width = 5, height = 4)
+popmax1
+dev.off()
 ```
 
 
@@ -178,11 +198,79 @@ res$disturb <- c("n", "n", "y","y")
 res$ttt<- paste(res$animal,res$disturb)
 
 popg_max <- ggplot(data = res, aes(ttt,exp(est))) +  
-   geom_point(aes(color = disturb, shape = animal), size = 3) + geom_errorbar(aes(ymin= exp(lwr), ymax=exp(upr), color= disturb), width = 0.3)+ ylab("Daphnia magna per 10 mL ") + 
-  xlab("Herbivore Treatment")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("seashell4", "black")) + 
-  scale_shape_manual(values = c(17,19))+
-  ggtitle("C. Maximum population") + labs(color = "Disturbance", shape = "Herbivore") + theme(legend.position = c(0.4,0.75), legend.box = "horizontal", legend.background = element_rect(fill = "transparent"))
+   geom_point(size = 4) + geom_errorbar(aes(ymin= exp(lwr), ymax=exp(upr)), width = 0.3)+ ylab("Daphnia magna per 10 mL ") + 
+  xlab(" ")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) +
+  ggtitle("B. Maximum population")  + theme(legend.position = "none") + 
+  scale_x_discrete(labels =str_wrap(c("Daphnia and Physa Not Disturbed", "Daphnia and Physa Disturbed", "Daphia Not Disturbed", "Daphnia Disturbed"),width = 8))
 
-grid.arrange(popg_full,popg,popg_max,popmax1, nrow = 2)
+print(popg_max)
+
+grid.arrange(popg_full, popg_max)
 
 ```
+
+save to pdf
+```{r}
+pdf(file = "daphnia_pop.pdf", width = 7, height = 11)
+grid.arrange(popg_full, popg_max)
+dev.off()
+
+
+```
+
+
+
+Ephippia presence
+```{r daphnia egg cases}
+egg <- read.csv("egg_case.csv")
+names(egg) <- c("TankNum","eggs")
+dim(egg)
+newdat1 <- dat %>%filter(ExptDay == 1)%>% dplyr::select(TankNum, animal, disturb, block)
+egg1 <- left_join( egg, newdat1)
+dim(egg1)
+newdat2 <- newdat %>% filter(ExptDay ==1) %>% dplyr::select(TankNum,treatment)
+egg1 <- left_join(egg1,newdat2)
+dim(egg1)
+egg2 <- egg1 %>% filter(! treatment %in% c(5,6,9,10,13,14))
+dim(egg2)
+egg4 <- egg2 %>% filter(animal %in% c("both","daphnia"))
+```
+
+```{r egg case model}
+egg4$animal <- factor(egg4$animal, levels= c("daphnia", "both"))
+egg4$eggs <- as.factor(egg4$eggs)
+str(egg4)
+eggmod <- glmer(eggs~-1+animal*disturb + (1|block), family = binomial(link= logit), data = egg4)
+## estimate main effects at midpoint by using sum-to-zero contrasts-- why did I do this?? 
+## (probably better)
+eggmod_cs <- update(eggmod, contrasts=list(animal=contr.sum,disturb=contr.sum))
+
+
+```
+
+
+```{r plot_eggcases}
+## 1. this is probably the best representation
+plot(emmeans(eggmod,~animal*disturb)) #,type="response")
+## if you want to plot this yourself:
+dd <- as.data.frame(emmeans(eggmod,~animal*disturb),type="response")
+
+dd$treat <- paste(dd$animal,dd$disturb)
+
+eggg <- ggplot(data = dd, aes(treat, prob)) + geom_point( size = 4) + geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL), width = 0.3)+ ylab("Probablity Ephippium Present") + 
+  xlab(" ")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) +
+  scale_x_discrete(labels =str_wrap(c("Daphnia and Physa Not Disturbed", "Daphnia and Physa Disturbed", "Daphia Not Disturbed", "Daphnia Disturbed"),width = 8))
+
+
+print(eggg)
+```
+
+save to pdf
+```{r}
+pdf(file = "ephippium.pdf", width = 4, height = 5)
+eggg
+dev.off()
+
+```
+
+

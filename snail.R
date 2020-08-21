@@ -23,15 +23,15 @@ p <- check[which(check$Snail != check$Snail.Count), ]
 ## snail survival of original cohert
 snail <- snail %>% filter(!is.na(Snail))
 
-ggplot(data = snail, aes(ExptDay, Snail)) + geom_point(aes(color=as.factor(TankNum))) + 
-  facet_wrap(~treatment)
+#ggplot(data = snail, aes(ExptDay, Snail)) + geom_point(aes(color=as.factor(TankNum))) + 
+ # facet_wrap(~treatment)
 
 
 snail <- snail %>% mutate(proportion = snail$Snail/4,total=4)
-##convert any that were greater than 4 to 4
+##convert any that were greater than 4 to 4--to follow original cohort only
 
 ## want to remove babies from count for this analysis-- 
-##where babies were entered here all 4 original survived
+##where babies were entered here ALL 4 original survived  ## needs to be doubled checked in data-- to see if true
 for(i in 1:nrow(snail)){
   if (snail$proportion[i] > 1) {
     snail$proportion[i] <- 1
@@ -97,23 +97,29 @@ newdat2 <- newdat %>% group_by(animal, disturb, ExptDay) %>%
 
 snail4$treat <- paste(snail4$animal, snail4$disturb)
 newdat2$treat <- paste(newdat2$animal, newdat2$disturb)
-snail_pop <- (ggplot(data = snail4, aes(x=ExptDay, y=prop)) 
-  
-  + geom_point(aes(color=treat, shape=disturb))
+snail_pop <- (ggplot(data = snail4, aes(x=ExptDay, y=prop))  + geom_point(aes(color=treat, shape=disturb), size = 2)
   +geom_errorbar(aes(ymin = lwr, ymax=upr, color = treat), width = 0.3)
-  + geom_line(data= newdat2, aes(color = treat,linetype = disturb),size = 1) 
-  + geom_ribbon(data = newdat2, aes(ymin = lower, ymax = upper, color = treat, fill = treat), alpha = 0.15) 
+  + geom_line(data= newdat2, aes(color = treat,linetype = disturb),size = 2) 
+  + geom_ribbon(data = newdat2, aes(ymin = lower, ymax = upper, color = treat, fill = treat), alpha = 0.15, show.legend = FALSE) 
   + xlab("Day") + ylab("Proportion Surviving")
-  + scale_color_discrete(name = str_wrap("Herbivore Treatment", width =10), labels = c("Daphnia N", "Daphnia Y", "Snail N", "Snail Y")) 
-  + scale_linetype_discrete(name = "Disurbance") + scale_shape_discrete(guide = FALSE) + 
-  scale_fill_discrete(guide = FALSE)+ ggtitle("A.")+
+  + scale_color_discrete(name = "Treatment",
+                         labels = str_wrap(c("Daphnia and Physa Not Disturbed", 
+                                             "Daphnia and Physa Disturbed", "Physa Not Disturbed", "Physa Disturbed"),
+                                           width = 10))
+  + scale_linetype_discrete(guide = FALSE) + scale_shape_discrete(guide = FALSE) + 
+  scale_fill_discrete(guide = FALSE)+
   theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + 
-  theme(legend.position = "bottom", legend.direction = "horizontal", 
-        legend.box = "vertical")
+  theme(legend.position = c(0.15,0.25), legend.direction = "vertical",
+        legend.box.background = element_rect(colour = "black", fill = FALSE), legend.box = "vertical", legend.background = element_blank()
+        )
 )
 
 print(snail_pop)
   
+
+pdf(file = "snail_survival.pdf", width = 5.1, height = 5)
+snail_pop
+dev.off()
 
 ##snail growth
 ## going through the data I just don't think it was entered consistently enough to include
@@ -181,30 +187,43 @@ dd <- as.data.frame(emmeans(eggmod,~animal*disturb),type="response")
 
 dd$treat <- paste(dd$animal,dd$disturb)
 
-snail_eggg <- ggplot(data = dd, aes(treat, prob)) + geom_point(aes(color = disturb, shape = animal), size = 3) +
-  geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL, color= disturb), width = 0.3)+ 
+snail_eggg <- ggplot(data = dd, aes(treat, prob)) + geom_point( size = 4) +
+  geom_errorbar(aes(ymin= asymp.LCL, ymax=asymp.UCL), width = 0.3)+ 
   ylab(str_wrap("Probablity Eggmass Present", width = 20)) + 
   xlab(" ")+
   theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black", "seashell4")) + 
-  labs(color="Disturbance", shape = "Herbivore") + ggtitle("C.")+ theme(legend.position = "none")
+  labs(color="Disturbance", shape = "Herbivore") + theme(legend.position = "none") +
+  scale_x_discrete(labels = str_wrap(c("Daphnia and Physa Not Disturbed",'Daphnia and Physa Disturbed','Physa Not Disturbed', 'Physa Disturbed'), width= 10))
 
 
 
 print(snail_eggg)
+
+pdf(file = "snail_eggmass_prob.pdf", width = 5, height = 4)
+snail_eggg
+dev.off()
 
 ## graph difference of differences
 nd <- (contrast(regrid(emmeans(eggmod, ~animal*disturb)), interaction = "pairwise", by = "animal"))
 nd1 <- data.frame(confint(nd))
 
 
-snail_egg_diff <- ggplot(data = nd1, aes(estimate, animal)) + geom_point(size = 3) +
+snail_egg_diff <- ggplot(data = nd1, aes(estimate, animal)) + geom_point(size = 4) +
   geom_errorbarh(aes(xmin= asymp.LCL, xmax=asymp.UCL), height = 0.3)+ 
   xlab(str_wrap("Difference (logit scale) Snail Eggmass Present", width = 27)) + 
   ylab(" ")+
   theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + 
-   ggtitle("B.")
+    scale_y_discrete(labels = str_wrap(c('Daphnia and Physa','Physa Only'), width= 10))
 
 print(snail_egg_diff)
+
+
+pdf(file = "diff_eggmass.pdf", width = 5, height = 4)
+snail_egg_diff
+dev.off()
+
+
+
 ## juvenile count
 ## so few tanks with individuals
 

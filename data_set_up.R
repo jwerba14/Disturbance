@@ -7,6 +7,7 @@ library(emmeans)
 library(gridExtra)
 library(sjstats)
 library(stringr)
+library(lmerTest)
 
 
 

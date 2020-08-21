@@ -8,6 +8,8 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 source("data_set_up.R")
+dat$animal <- factor(dat$animal, levels = c("none", "snail", "daphnia", "both"))
+dat$disturb <- factor(dat$disturb, levels = c("y","n"))
 ```
 
 
@@ -49,13 +51,12 @@ endday1 <- dat %>% filter(ExptDay == 36) %>% filter(TankNum !=20 & TankNum !=21 
 
 end <- rbind(endday, endday1)
 
-
 ```
 
 Final day model
 ```{r}
 ##remove 2 NA values
-finmod00 <- lmer(log(adj_chl) ~ -1 + animal*disturb + (1|block), data =  end[end$adj_chl > 0, ])
+finmod00 <- lmer(log10(adj_chl) ~ -1 + animal*disturb + (1|block), data =  end[end$adj_chl > 0, ])
 plot(resid(finmod00))
 qqnorm(resid(finmod00))
 
@@ -63,7 +64,11 @@ qqnorm(resid(finmod00))
 
 Contrasts of interest
 ```{r}
+## difference of differences (6 contrasts)
 chlfin <- contrast(regrid(emmeans(finmod00, ~animal*disturb)), interaction = c("pairwise"), by = NULL)
+
+## difference between disturbed treatments across herbivores (5 contrasts)
+
 
 ##for graphing
 chlfin1 <- emmeans(finmod00, ~animal*disturb)
@@ -108,7 +113,7 @@ max_chl$disturb <- factor(max_chl$disturb, levels = c("y","n"))
 
 linear model
 ```{r}
-maxmod <- lmer(log(mean_3) ~ -1+animal*disturb + (1|block), data = max_chl)
+maxmod <- lmer(log10(mean_3) ~ -1+animal*disturb + (1|block), data = max_chl)
 plot(resid(maxmod))
 qqnorm(resid(maxmod))
 ```
@@ -118,7 +123,7 @@ contrasts of interest
 
 
 ###compares differences of differences- checked with output of summany(maxmod)- gets correct mean estimates
-
+ 
 mchl <- contrast(regrid(emmeans(maxmod, ~animal*disturb)), interaction = c("pairwise"), by = NULL)
 
 summary(maxmod)
@@ -134,7 +139,7 @@ mchl2 <- data.frame(confint(pairs(mchl1, simple = "disturb")))
 Ammonium final day
 ```{r}
 
-amm_final <- lmer(log(NH4)~animal*disturb + (1|block), data = finday)
+amm_final <- lmer(log10(NH4)~animal*disturb + (1|block), data = finday)
 plot(resid(amm_final))
 qqnorm(resid(amm_final))
 ```
@@ -155,7 +160,7 @@ dat_max <- dat %>% filter(ExptDay > 19) %>% group_by(TankNum) %>% mutate(max_nh4
 #filter for only days with highest ammonium reached
 dat_max2 <- dat_max %>% group_by(TankNum) %>% filter(NH4==max_nh4)
 
-amm_max <- lmer(log(NH4) ~ animal*disturb + (1|block), data = dat_max2)
+amm_max <- lmer(log10(NH4) ~ animal*disturb + (1|block), data = dat_max2)
 plot(resid(amm_max))
 qqnorm(resid(amm_max))
 
@@ -171,17 +176,53 @@ mfin2 <- data.frame(confint(pairs(mfin1, simple = "disturb")))
 ```
 Graphing
 ```{r}
-g <- ggplot(data = chlfin2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab("Herbivore Treatment") + xlab(str_wrap("Proportional Change in Final Chlorophyll (ug/L)", width = 25 )) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("C.") 
+g <- ggplot(data = chlfin2, aes((estimate), animal)) + geom_point(size=4) + geom_errorbarh(aes(xmin=(lower.CL), xmax = (upper.CL)), height = 0.3) + ylab("") + xlab(str_wrap("Log10 Fold Change in Final Chlorophyll", width = 25 )) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_y_discrete(labels = str_wrap(c("No Herbivore",'Physa Only','Daphnia Only', 'Daphnia and Physa'), width= 10)) + geom_vline(xintercept = 0, linetype= "dashed", color = "gray68")
 
-g1 <- ggplot(data = mchl2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab("") + xlab(str_wrap("Proportional Change in Maximum Chlorophyll (ug/L)", width = 27)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("D.") 
+g1 <- ggplot(data = mchl2, aes(exp(estimate), animal)) + geom_point(size=4) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab("") + xlab(str_wrap("Log10 Fold Change in Maximum Chlorophyll ", width = 27)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank() ) + scale_y_discrete(labels = str_wrap(c("No Herbivore",'Physa Only','Daphnia Only', 'Daphnia and Physa'), width= 10))+ geom_vline(xintercept = 0, linetype= "dashed", color = "gray68")
 
-g2 <- ggplot(data = ammfin2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab("Herbivore Treatment") + xlab(str_wrap("Proportional Change in Final Ammonium (mg/L)",width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("C.") 
+g2 <- ggplot(data = ammfin2, aes(exp(estimate), animal)) + geom_point(size=4) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab("") + xlab(str_wrap("Log10 Fold Change in Final Ammonium",width = 25)) + 
+  theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_y_discrete(labels = str_wrap(c("No Herbivore",'Physa Only','Daphnia Only', 'Daphnia and Physa'), width= 10))+ geom_vline(xintercept = 0, linetype= "dashed", color = "gray68")
 
-g3 <- ggplot(data = mfin2, aes(exp(estimate), animal)) + geom_point(size=3) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab(" ") + xlab(str_wrap("Proportional Change in Maximum Ammonium (mg/L)", width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + ggtitle("D.") 
+g3 <- ggplot(data = mfin2, aes(exp(estimate), animal)) + geom_point(size=4) + geom_errorbarh(aes(xmin=exp(lower.CL), xmax = exp(upper.CL)), height = 0.3) + ylab(" ") + xlab(str_wrap("Log10 Fold Change in Maximum Ammonium", width = 25)) + 
+  theme(axis.line = element_line(colour = "black"), panel.border = element_blank())+ scale_y_discrete(labels = str_wrap(c("No Herbivore",'Physa Only','Daphnia Only', 'Daphnia and Physa'), width= 10)) + geom_vline(xintercept = 0, linetype= "dashed", color = "gray68")
 
 
+gl2 <- list(g,g1,g2,g3)
+grid.arrange(
+  grobs = gl2,
+  widths = c(1.3,1),
+  layout_matrix = rbind(c(1,2),
+                        c(3,4))
+)
+
+
+grid.arrange(g,g1,g2,g3)
 
 ```
+
+save to pdf - fyi wont run if figures show in rmarkdown and not on regular plot window
+
+```{r}
+pdf(file = 'final_chlorophyl.pdf', width = 5, height = 4)
+g
+dev.off()
+
+pdf(file = 'max_chlorophyll.pdf', width = 5, height = 4)
+g1
+dev.off()
+
+
+pdf(file = 'final_ammonium.pdf', width = 5, height = 4)
+g2
+dev.off()
+
+pdf(file = 'max_ammonium.pdf', width = 5, height = 4)
+g3
+dev.off()
+
+```
+
+
 
 graph raw data
 ```{r}
@@ -189,14 +230,14 @@ final <- end %>% filter(adj_chl > 0) %>% group_by(animal, disturb) %>% summarize
 final$treat <- paste(final$animal, final$disturb)
 
 final_chl_g <- ggplot(data =final, aes(treat, chl) ) +
-  geom_point(aes(shape = disturb, color = animal), size = 3) + geom_errorbar(aes(ymin= lower, ymax = upper), width = 0.3) + xlab(" ") + ylab("Final Chlorophyll (ug/L)") + ggtitle("A.") + theme(legend.position = "none") + theme(axis.line = element_line(colour = "black"), panel.border = element_blank(), axis.text.x = element_blank()) + scale_color_manual(values = c("black","darkslategray",  "azure4","darkgray"))
+  geom_point(size = 3) + geom_errorbar(aes(ymin= lower, ymax = upper), width = 0.3) + xlab(" ") + ylab("Final Chlorophyll (ug/L)") + theme(legend.position = "none") + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_x_discrete(labels = function(x) str_wrap(c("Daphnia and Physa Not Disturbed", "Daphnia and Physa Disturbed", "Daphia Not Disturbed", "Daphnia Disturbed","No Herbivore Not Disturbed", "No Herbivore Disturbed", "Physa Not Disturbed", "Physa Disturbed" ), width = 8))
 
 
 maxchl <- max_chl %>% group_by(animal,disturb) %>% summarize(chl = mean(mean_3), upper = quantile(mean_3,0.975), lower = quantile(mean_3,0.025))
 maxchl$treat <- paste(maxchl$animal, maxchl$disturb)
 
 max_chl_g <- ggplot(data= maxchl, aes(treat, chl)) + 
-geom_point(aes(shape = disturb, color = animal), size = 3) + geom_errorbar(aes(ymin= lower, ymax = upper), width = 0.3) + xlab(" ") + ylab("Maximum Chlorophyll (ug/L)") + ggtitle("B.") + theme(legend.position = "none") + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black","darkslategray",  "azure4","darkgray"))+ scale_x_discrete(labels = function(x) str_wrap(x, width = 5))
+geom_point(size = 3) + geom_errorbar(aes(ymin= lower, ymax = upper), width = 0.3) + xlab(" ") + ylab("Maximum Chlorophyll (ug/L)") + theme(legend.position = "none") + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_x_discrete(labels = function(x) str_wrap(c("Daphnia and Physa Not Disturbed", "Daphnia and Physa Disturbed", "Daphia Not Disturbed", "Daphnia Disturbed","No Herbivore Not Disturbed", "No Herbivore Disturbed", "Physa Not Disturbed", "Physa Disturbed" ), width = 8))
 
 
 nhfin <- finday %>% filter(!is.na(NH4)) %>% group_by(animal, disturb) %>% summarize(amm = mean(NH4), upper = quantile(NH4,0.975), lower = quantile(NH4,0.025))
@@ -204,36 +245,31 @@ nhfin$treat <- paste(nhfin$animal,nhfin$disturb)
 
 
 fin_amm <- ggplot(data = nhfin, aes(treat, amm))  + 
-geom_point(aes(shape = disturb, color = animal), size = 3) + geom_errorbar(aes(ymin= lower, ymax = upper), width = 0.3) + xlab(" ") + ylab("Final Ammonium (mg/L)") + ggtitle("A.") + theme(legend.position = "none") + theme(axis.line = element_line(colour = "black"), panel.border = element_blank(), axis.text.x = element_blank()) +  scale_color_manual(values = c("black","darkslategray",  "azure4","darkgray")) 
+geom_point( size = 3) + geom_errorbar(aes(ymin= lower, ymax = upper), width = 0.3) + xlab(" ") + ylab("Final Ammonium (mg/L)") + theme(legend.position = "none") + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_x_discrete(labels = function(x) str_wrap(c("Daphnia and Physa Not Disturbed", "Daphnia and Physa Disturbed", "Daphia Not Disturbed", "Daphnia Disturbed","No Herbivore Not Disturbed", "No Herbivore Disturbed", "Physa Not Disturbed", "Physa Disturbed"), width = 8))
 
 maxamm <- dat_max2 %>% group_by(disturb, animal) %>% summarize(amm = mean(NH4), upper = quantile(NH4,0.975), lower = quantile(NH4,0.025))
 maxamm$treat <- paste(maxamm$animal,maxamm$disturb)
 
 max_amm <- ggplot(data = maxamm, aes(treat, amm))  + 
-geom_point(aes(shape = disturb, color = animal), size = 3) + geom_errorbar(aes(ymin= lower, ymax = upper), width = 0.3) + xlab(" ") + ylab("Maximum Ammonium (mg/L)") + ggtitle("B.") + theme(legend.position = "none") + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_color_manual(values = c("black","darkslategray",  "azure4","darkgray")) + scale_x_discrete(labels = function(x) str_wrap(x, width = 5))
-
-grid.arrange(final_chl_g,g,max_chl_g,g1, nrow=2)
-
-gl <- list(final_chl_g,max_chl_g,g,g1)
-grid.arrange(
-  grobs = gl,
-  widths = c(1, 1, 1,1),
-  layout_matrix = rbind(c(1, 1, 1,1),
-                        c(2, 2, 2,2),
-                        c(3,3,4, 4))
-)
-
-grid.arrange(fin_amm,g2, max_amm,g3)
-gl2 <- list(fin_amm,max_amm,g2, g3)
-grid.arrange(
-  grobs = gl2,
-  widths = c(1, 1, 1,1),
-  layout_matrix = rbind(c(1, 1, 1,1),
-                        c(2, 2, 2,2),
-                        c(3,3,4, 4))
-)
+geom_point(size = 3) + geom_errorbar(aes(ymin= lower, ymax = upper), width = 0.3) + xlab(" ") + ylab("Maximum Ammonium (mg/L)") + theme(legend.position = "none") + theme(axis.line = element_line(colour = "black"), panel.border = element_blank())  + scale_x_discrete(labels = function(x) str_wrap(c("Daphnia and Physa Not Disturbed", "Daphnia and Physa Disturbed", "Daphia Not Disturbed", "Daphnia Disturbed","No Herbivore Not Disturbed", "No Herbivore Disturbed", "Physa Not Disturbed", "Physa Disturbed" ), width = 8))
 
 
+
+pdf(file = "max_ammonium_raw.pdf", width = 7 , height = 5)
+max_amm
+dev.off()
+
+pdf(file = "final_ammonium_raw.pdf", width = 7 , height = 5)
+fin_amm
+dev.off()
+
+pdf(file = "max_chl_raw.pdf", width = 7 , height = 5)
+max_chl_g
+dev.off()
+
+pdf(file = "final_chl_raw.pdf", width = 7 , height = 5)
+final_chl_g
+dev.off()
 
 ```
 
