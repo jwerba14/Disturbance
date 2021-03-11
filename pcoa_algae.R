@@ -131,7 +131,7 @@ summ_per_3 <- left_join(summ_per_3, summ_per_3_sd)
                     position=position_jitter(width=0.5)) + 
     xlab("Species") +
     ylab("Percent") + ggtitle("C. Final Conditions")+
-    theme(legend.box="vertical", legend.position = c(0.8,0.95),legend.direction = "horizontal",
+    theme(legend.box="horizontal", legend.position = c(0.6,0.8),legend.direction = "vertical",
           legend.background = element_rect(fill = "transparent"))+
     labs(shape="Disturbance", color = "Herbivore")+
     theme(axis.line = element_line(colour = "black"), panel.border = element_blank()))

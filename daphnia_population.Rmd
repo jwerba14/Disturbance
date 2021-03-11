@@ -240,7 +240,7 @@ egg4 <- egg2 %>% filter(animal %in% c("both","daphnia"))
 egg4$animal <- factor(egg4$animal, levels= c("daphnia", "both"))
 egg4$eggs <- as.factor(egg4$eggs)
 str(egg4)
-eggmod <- glmer(eggs~-1+animal*disturb + (1|block), family = binomial(link= logit), data = egg4)
+eggmod <- glmer(eggs~animal*disturb + (1|block), family = binomial(link= logit), data = egg4)
 ## estimate main effects at midpoint by using sum-to-zero contrasts-- why did I do this?? 
 ## (probably better)
 eggmod_cs <- update(eggmod, contrasts=list(animal=contr.sum,disturb=contr.sum))
@@ -252,6 +252,7 @@ eggmod_cs <- update(eggmod, contrasts=list(animal=contr.sum,disturb=contr.sum))
 ```{r plot_eggcases}
 ## 1. this is probably the best representation
 plot(emmeans(eggmod,~animal*disturb)) #,type="response")
+plot(emmeans(eggmod, ~disturb))
 ## if you want to plot this yourself:
 dd <- as.data.frame(emmeans(eggmod,~animal*disturb),type="response")
 
