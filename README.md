@@ -9,6 +9,7 @@ Graphing_Set_Up.R sets up graphing settings
 fix_chl.R cleans cholorophyll data
 
 -- the following require cleaned data from above to run ----
+
 daphnia_population.RMD is code to run models and graphs for daphnia final populations and ephippia presence
 disturbance_experiment.RMD is code to run models and graphs for chlorophyll and ammonium
 pcoa_algae.R runs and graphs PCOA and permanova on algal communities 
