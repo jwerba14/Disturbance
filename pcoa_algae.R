@@ -36,7 +36,8 @@ for (i in 1:nrow(dat)){
 ## add treatment column to algae
 treat <- dat %>%filter(ExptDay ==1) %>% dplyr::select(animal,disturb, TankNum)
 algal <- left_join(treat, algae_all)  ## drops tanks that had cerio bc matches with treat
-
+## drop amoeba
+algal <- algal %>% dplyr::select(-amoeba)
 
 ###Make Three Data Frames For Rounds 1, 2, and 3
 algal_day1 <- algal %>% filter(Round == 1)
@@ -133,7 +134,7 @@ summ_per_3 <- left_join(summ_per_3, summ_per_3_sd)
     ylab("Percent") + ggtitle("C. Final Conditions")+
     theme(legend.box="horizontal", legend.position = c(0.6,0.8),legend.direction = "vertical",
           legend.background = element_rect(fill = "transparent"))+
-    labs(shape="Disturbance", color = "Herbivore")+
+    labs(color = "Herbivore")+ scale_shape_manual(name = "Disturbance", labels = c("Not Disturbed", "Disturbed"), values = c(19,17))+
     theme(axis.line = element_line(colour = "black"), panel.border = element_blank()))
   
 grid.arrange(per1, per2, per3)
@@ -188,14 +189,14 @@ day2_pcoa <- cmdscale(algal2_dist, k=3, eig = TRUE, add = FALSE)
 day3_pcoa <- cmdscale(algal3_dist, k=3, eig = TRUE, add = FALSE)
 
 ###calculate Expected Variation From The First 2 Axes
-(expvar1_day1 <- round(day1_pcoa$eig[1] / sum(day1_pcoa$eig), 3) * 100) # 62.4
-(expvar2_day1 <- round(day1_pcoa$eig[2] / sum(day1_pcoa$eig), 3) * 100) # 18.2
+(expvar1_day1 <- round(day1_pcoa$eig[1] / sum(day1_pcoa$eig), 3) * 100) # 62.7
+(expvar2_day1 <- round(day1_pcoa$eig[2] / sum(day1_pcoa$eig), 3) * 100) # 18.3
 
-(expvar1_day2 <- round(day2_pcoa$eig[1] / sum(day2_pcoa$eig), 3) * 100) # 45.3
-(expvar2_day2 <- round(day2_pcoa$eig[2] / sum(day2_pcoa$eig), 3) * 100) # 17.4
+(expvar1_day2 <- round(day2_pcoa$eig[1] / sum(day2_pcoa$eig), 3) * 100) # 45.9
+(expvar2_day2 <- round(day2_pcoa$eig[2] / sum(day2_pcoa$eig), 3) * 100) # 17.6
 
-(expvar1_day3 <- round(day3_pcoa$eig[1] / sum(day3_pcoa$eig), 3) * 100) # 37.9
-(expvar2_day3 <- round(day3_pcoa$eig[2] / sum(day3_pcoa$eig), 3) * 100) #19.2
+(expvar1_day3 <- round(day3_pcoa$eig[1] / sum(day3_pcoa$eig), 3) * 100) # 38.5
+(expvar2_day3 <- round(day3_pcoa$eig[2] / sum(day3_pcoa$eig), 3) * 100) #19.7
 
 
 
@@ -244,7 +245,7 @@ graph_dat_end_sum <- graph_dat_end %>%
 (g1 <- ggplot(data = graph_dat_start_sum, aes(Axis1,Axis2)) + 
     geom_point(aes(color = animal, shape = disturb), size = 5) +
     geom_errorbar(aes(ymax= Axis2+sd2, ymin= Axis2-sd2)) + 
-    geom_errorbarh(aes(xmax=Axis1+sd1, xmin=Axis1-sd1)) + xlab("Axis 1 (62%)") +
+    geom_errorbarh(aes(xmax=Axis1+sd1, xmin=Axis1-sd1)) + xlab("Axis 1 (63%)") +
     ylab("Axis 2 (18%)") + ggtitle("A. Starting Conditions")+
     scale_x_continuous(limits = c(-.6, 0.6))+
     scale_y_continuous(limits = c(-.4, 0.4))+
@@ -260,8 +261,8 @@ graph_dat_end_sum <- graph_dat_end %>%
 (g2 <- ggplot(data = graph_dat_midpt_sum, aes(Axis1,Axis2)) + 
     geom_point(aes(color = animal, shape = disturb), size = 5)  +
     geom_errorbar(aes(ymax= Axis2+sd2, ymin= Axis2-sd2)) + 
-    geom_errorbarh(aes(xmax=Axis1+sd1, xmin=Axis1-sd1)) + xlab("Axis 1 (45%)") +
-    ylab("Axis 2 (17%)")+ ggtitle("B. Mid-Point")+ 
+    geom_errorbarh(aes(xmax=Axis1+sd1, xmin=Axis1-sd1)) + xlab("Axis 1 (46%)") +
+    ylab("Axis 2 (18%)")+ ggtitle("B. Mid-Point")+ 
     theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) +
     theme(legend.position = "none")+scale_x_continuous(limits = c(-.6, 0.6))+
     scale_y_continuous(limits = c(-.4, 0.4)))
@@ -272,7 +273,7 @@ graph_dat_end_sum <- graph_dat_end %>%
     geom_point(aes(color = animal, shape = disturb), size = 5)  +
     geom_errorbar(aes(ymax= Axis2+sd2, ymin= Axis2-sd2)) + 
     geom_errorbarh(aes(xmax=Axis1+sd1, xmin=Axis1-sd1)) + xlab("Axis 1 (38%)") +
-    ylab("Axis 2 (19%)") + ggtitle("C. Final Day") + scale_x_continuous(limits = c(-.6, 0.6))+
+    ylab("Axis 2 (20%)") + ggtitle("C. Final Day") + scale_x_continuous(limits = c(-.6, 0.6))+
     scale_y_continuous(limits = c(-.4, 0.4)) + theme(legend.position = "none") +
     theme(axis.line = element_line(colour = "black"), panel.border = element_blank()))
 
@@ -300,4 +301,39 @@ ad <- adonis2(algal[,-c(1:4)] ~ animal+disturb+Round, method = "bray",
 ##overall significance of terms together
 ad_over <- adonis2(algal[,-c(1:4)] ~ animal+disturb+Round, method = "bray",
                    data=algal, perm=1000,by=NULL,parallel = getOption("mc.cores"))
+
+
+## table for supplement
+
+library(xtable)
+algal1 <- algal %>%
+  pivot_longer(-c(animal, disturb, TankNum, Round)) %>%
+  group_by(animal, disturb, Round, name) %>%
+  summarize(count = sum(value))
+
+#algal2 <- algal1 %>% pivot_wider(names_from = name, values_from = count)
+
+algalR1 <- algal1 %>%
+  filter(animal == "both", disturb == "n", count > 0, ) %>%
+  rename( "Herbivore Treatment" = animal, 
+                              Disturb = disturb, "Collection point" = Round, Taxa = name) %>%
+  arrange("Collection point")
+
+
+xtable(algalR1a, captions  = "Algal taxa found at each collection time for the not disturbed treatment with both Physa sp. and D. magna")
+
+
+
+
+algalR2 <- algal1 %>%
+  filter(animal == "none", disturb == "y", count > 0, ) %>%
+  rename( "Herbivore Treatment" = animal, 
+          Disturb = disturb, "Collection point" = Round, Taxa = name) %>%
+  arrange("Collection point")
+
+
+print(xtable(algalR2), include.rownames=FALSE)
+
+
+
 
