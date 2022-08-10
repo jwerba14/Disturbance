@@ -6,6 +6,7 @@ source("Graphing_Set_Up.R")
 library(vegan)
 library(gridExtra)
 library(ggplot2)
+library(viridis)
 
 ## only select treatments without ceriodaphnia
 dat <- newdat %>% filter(! treatment %in% c(5,6,9,10,13,14))
@@ -334,6 +335,100 @@ algalR2 <- algal1 %>%
 
 print(xtable(algalR2), include.rownames=FALSE)
 
+## stacked bar chart for supplement
+
+nb.cols <- 17
+mycolors <- viridis_pal(option = "turbo", direction = -1)(nb.cols)
+
+day1 <- algal_day1 %>%
+  pivot_longer(-c(animal, disturb, TankNum, Round), names_to = "species", values_to = "value")
+
+day1$species <- ifelse(grepl("Unknown", day1$species), "Unknown", day1$species)
+day1$species <- ifelse(grepl("Unkniwn", day1$species), "Unknown", day1$species)
+day1$species <- ifelse(grepl("known", day1$species), "Unknown", day1$species)
+
+day2 <- algal_day2 %>%
+  pivot_longer(-c(animal, disturb, TankNum, Round), names_to = "species", values_to = "value")
+
+day2$species <- ifelse(grepl("Unknown", day2$species), "Unknown", day2$species)
+day2$species <- ifelse(grepl("Unkniwn", day2$species), "Unknown", day2$species)
+day2$species <- ifelse(grepl("known", day2$species), "Unknown", day2$species)
 
 
+day3 <- algal_day3 %>%
+  pivot_longer(-c(animal, disturb, TankNum, Round), names_to = "species", values_to = "value")
+day3$species <- ifelse(grepl("Unknown", day3$species), "Unknown", day3$species)
+day3$species <- ifelse(grepl("Unkniwn", day3$species), "Unknown", day3$species)
+day3$species <- ifelse(grepl("known", day3$species), "Unknown", day3$species)
+
+
+
+
+
+new.labs <- c("Not Disturbed", "Disturbed")
+names(new.labs) <- c("n", "y")
+
+theme_set(theme_bw()) 
+theme_update(axis.text.x = element_text(size = 20),
+             axis.text.y = element_text(size = 20),
+             axis.title.x = element_text(size = 20),
+             axis.title.y = element_text(size = 20),
+             legend.title = element_text(size = 25),
+             legend.text = element_text(size = 20),
+             plot.title = element_text(size = 30),
+             legend.spacing = unit(0.25, "cm"),
+             panel.grid.major = element_blank(),
+             panel.grid.minor = element_blank(),
+             strip.background = element_blank(),
+             panel.spacing = unit(0, "lines"),
+             legend.key = element_rect(fill = "white"),
+             panel.spacing.y = unit(-0.25, "lines"),
+             panel.border = element_rect(colour = "black", 
+                                         fill = NA, size = 1),
+             strip.text.x = element_text(size = 20, colour = "black", 
+                                         face = "bold"))
+
+
+# Create the plot
+d1 <- ggplot(day1, aes(fill=species, y=value, x=animal)) + 
+  geom_bar( stat="identity", position="fill", width=0.4, alpha = 0.6)+
+  scale_fill_manual(values = mycolors) +
+  scale_y_continuous(expand = c(0, 0), labels = scales::percent)+
+  facet_wrap(.~disturb, ncol=2, labeller = labeller(disturb=new.labs)) +
+  ylab("Relative abundance (%)") + 
+  xlab("Herbivore Treatment") + 
+  ggtitle("Starting Conditions")+ 
+  scale_x_discrete(labels = function(x)
+    str_wrap(c("Daphnia and Physa", "Daphnia", "No Herbivore", "Physa"), width = 8))+
+  theme(panel.spacing.x =  unit(2, "lines"))
+
+
+
+d2 <- ggplot(day2, aes(fill=species, y=value, x=animal)) + 
+  geom_bar( stat="identity", position="fill", width=0.4, alpha = 0.6)+
+  scale_fill_manual(values = mycolors) +
+  scale_y_continuous(expand = c(0, 0), labels = scales::percent)+
+  facet_wrap(.~disturb, ncol=2, labeller = labeller(disturb=new.labs)) +
+  ylab("Relative abundance (%)") + 
+  xlab("Herbivore Treatment") + 
+  ggtitle("Mid-point")+ 
+  scale_x_discrete(labels = function(x)
+    str_wrap(c("Daphnia and Physa", "Daphnia", "No Herbivore", "Physa"), width = 8))+
+  theme(panel.spacing.x =  unit(2, "lines"))
+
+
+
+d3 <- ggplot(day3, aes(fill=species, y=value, x=animal)) + 
+  geom_bar( stat="identity", position="fill", width=0.4, alpha = 0.6)+
+  scale_fill_manual(values = mycolors) +
+  scale_y_continuous(expand = c(0, 0), labels = scales::percent)+
+  facet_wrap(.~disturb, ncol=2, labeller = labeller(disturb=new.labs)) +
+  ylab("Relative abundance (%)") + 
+  xlab("Herbivore Treatment") + 
+  ggtitle("Final Day")+ 
+  scale_x_discrete(labels = function(x)
+    str_wrap(c("Daphnia and Physa", "Daphnia", "No Herbivore", "Physa"), width = 8))+
+  theme(panel.spacing.x =  unit(2, "lines"))
+
+grid.arrange(d1, d2, d3)
 

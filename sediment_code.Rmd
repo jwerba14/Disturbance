@@ -74,7 +74,7 @@ sedm2 <- data.frame(confint(pairs(sedm1, simple = "disturb")))
 
 plot differences
 ```{r, echo=FALSE}
-(sedg <- ggplot(data = sedm2, aes((estimate), animal)) + geom_point(size=4) + geom_errorbarh(aes(xmin=(lower.CL), xmax = (upper.CL)), height = 0.3) + ylab(" ") + xlab(str_wrap("Log10 Fold Change in Sediment", width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank()) + scale_y_discrete(labels = str_wrap(c("No Herbivore",'Physa Only','Daphnia Only', 'Daphnia and Physa'), width= 10)) + geom_vline(xintercept = 0, linetype = "dashed",color = "gray68"))
+(sedg <- ggplot(data = sedm2, aes((estimate), animal)) + geom_point(size=4) + geom_errorbarh(aes(xmin=(lower.CL), xmax = (upper.CL)), height = 0.3) + ylab(" ") + xlab(str_wrap("Log10 Fold Change in Sediment (mL)", width = 25)) + theme(axis.line = element_line(colour = "black"), panel.border = element_blank(), axis.text.y = element_text(size = 12.5)) + scale_y_discrete(labels = str_wrap(c("No Herbivore",'Physa Only','Daphnia Only', 'Daphnia and Physa'), width= 10)) + geom_vline(xintercept = 0, linetype = "dashed",color = "gray68") + ggtitle("A."))
 ```
 
 save to pdf
@@ -91,9 +91,9 @@ plot
 sedest <- as.data.frame(emmeans(sedmod, ~animal*disturb, type ="response"))
 sedest$treat <- paste(sedest$animal, sedest$disturb)
 sedr_g <- ggplot(data = sedest, aes(treat,response)) + geom_point(size=3) +
-  geom_errorbar(aes(ymin=lower.CL, ymax=upper.CL), width = 0.3) + ylab("Sediment (mL)") + 
+  geom_errorbar(aes(ymin=lower.CL, ymax=upper.CL), width = 0.3) + ylab("\n \n \nSediment (mL)") + 
   xlab(" ")+ theme(axis.line = element_line(colour = "black"), panel.border = element_blank())  + 
-   theme(legend.position= "none")+ scale_x_discrete(labels = function(x) str_wrap(c("Daphnia and Physa Not Disturbed", "Daphnia and Physa Disturbed", "Daphia Not Disturbed", "Daphnia Disturbed","No Herbivore Not Disturbed", "No Herbivore Disturbed", "Physa Not Disturbed", "Physa Disturbed" ), width = 8))
+   theme(legend.position= "none")+ scale_x_discrete(labels = function(x) str_wrap(c("Daphnia and Physa Not Disturbed", "Daphnia and Physa Disturbed", "Daphia Not Disturbed", "Daphnia Disturbed","No Herbivore Not Disturbed", "No Herbivore Disturbed", "Physa Not Disturbed", "Physa Disturbed" ), width = 8)) + ggtitle("B.")
 
 
 
@@ -106,3 +106,13 @@ sedr_g
 dev.off()
 ```
 
+```{R}
+sdl <- list(sedg, sedr_g)
+grid.arrange(
+  grobs = sdl,
+  widths = c(1,1),
+  layout_matrix = rbind(c(1,NA),
+                        c(2,2))
+)
+
+```
